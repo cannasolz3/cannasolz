@@ -11,7 +11,7 @@ const API_URL = process.env.API_URL || (process.env.NODE_ENV === 'production'
   ? 'https://api.buxdao.com'
   : 'http://localhost:3001');
 
-const REDIRECT_URI = process.env.DISCORD_REDIRECT_URI || `${API_URL}/api/auth/discord/callback`;
+const REDIRECT_URI_ENV = process.env.DISCORD_REDIRECT_URI || null;
 
 router.get('/', async (req, res) => {
   try {
@@ -43,10 +43,19 @@ router.get('/', async (req, res) => {
     // Force session save before redirect
     await new Promise((resolve) => req.session.save(resolve));
 
+    // Determine redirect URI
+    let redirectUri = REDIRECT_URI_ENV;
+    if (!redirectUri) {
+      const proto = (req.headers['x-forwarded-proto'] || req.protocol || 'https').split(',')[0];
+      const host = req.headers['x-forwarded-host'] || req.headers.host;
+      const origin = host ? `${proto}://${host}` : API_URL;
+      redirectUri = `${origin}/api/auth/discord/callback`;
+    }
+
     // Build Discord OAuth URL
     const params = new URLSearchParams({
       client_id: process.env.DISCORD_CLIENT_ID,
-      redirect_uri: REDIRECT_URI,
+      redirect_uri: redirectUri,
       response_type: 'code',
       scope: 'identify guilds.join',
       state: state,
