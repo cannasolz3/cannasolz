@@ -1,0 +1,11 @@
+{
+  "installCommand": "npm ci",
+  "buildCommand": "npm run -w packages/frontend build",
+  "outputDirectory": "packages/frontend/dist",
+  "routes": [
+    { "src": "/api/(.*)", "dest": "api/index.js" },
+    { "src": "/health", "dest": "api/index.js" }
+  ]
+}
+
+
