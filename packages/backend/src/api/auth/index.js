@@ -431,6 +431,16 @@ async function handleDiscordCallback(req, res) {
 
   await syncDiscordDisplayName(cookieUser);
 
+  // Automatically sync Discord roles after authentication
+  // Run in background so it doesn't block the redirect
+  const { syncUserRoles } = await import('../integrations/discord/roles.js');
+  const guildId = process.env.DISCORD_GUILD_ID || runtime.discord?.guildId;
+  if (guildId && cookieUser.discord_id) {
+    syncUserRoles(cookieUser.discord_id, guildId).catch(err => {
+      console.error('[Discord Callback] Error syncing roles (non-blocking):', err);
+    });
+  }
+
   // Set auth cookies
   const oneWeek = 7 * 24 * 60 * 60 * 1000;
   const responseCookies = [

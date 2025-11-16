@@ -1,5 +1,5 @@
 import fetch from 'node-fetch';
-import { pool } from '../../../api/config/database.js';
+import dbPool from '../../../api/config/database.js';
 
 // Production URLs
 const FRONTEND_URL = process.env.FRONTEND_URL || (process.env.NODE_ENV === 'production' ? 'https://buxdao.com' : 'http://localhost:5173');
@@ -91,7 +91,7 @@ export default async function handler(req, res) {
     console.log('User data fetched successfully:', { id: userData.id, username: userData.username });
 
     // Get database connection
-    client = await pool.connect();
+    client = await dbPool.connect();
 
     // Update user record
     await client.query(

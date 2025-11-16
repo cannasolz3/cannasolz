@@ -142,6 +142,15 @@ userWalletsRouter.post('/', async (req, res) => {
     // Rebuild roles JSON from collection_counts + roles catalog
     await dbPool.query('SELECT rebuild_user_roles($1::varchar)', [discordId]);
 
+    // Automatically sync Discord roles after wallet link
+    const { syncUserRoles } = await import('../integrations/discord/roles.js');
+    const guildId = process.env.DISCORD_GUILD_ID;
+    if (guildId) {
+      syncUserRoles(discordId, guildId).catch(err => {
+        console.error('[Wallet Link] Error syncing roles (non-blocking):', err);
+      });
+    }
+
     res.json({ success: true });
   } catch (error) {
     console.error('Error adding user wallet:', error);
