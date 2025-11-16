@@ -12,7 +12,18 @@ let discordClient = null;
 async function getDiscordClient() {
   if (!discordClient) {
     try {
-      console.log('Initializing Discord client...');
+      const botToken = process.env.DISCORD_BOT_TOKEN;
+      if (!botToken) {
+        console.error('DISCORD_BOT_TOKEN environment variable is not set');
+        return null;
+      }
+      
+      console.log('Initializing Discord client...', {
+        hasToken: !!botToken,
+        tokenLength: botToken?.length,
+        tokenPrefix: botToken?.substring(0, 10) + '...'
+      });
+      
       discordClient = new Client({
         intents: [
           GatewayIntentBits.Guilds,
@@ -29,19 +40,55 @@ async function getDiscordClient() {
 
       // Set up event handlers
       discordClient.on('ready', () => {
-        console.log(`Logged in as ${discordClient.user.tag}`);
+        console.log(`Discord client ready! Logged in as ${discordClient.user.tag}`);
       });
 
       discordClient.on('error', (error) => {
         console.error('Discord client error:', error);
+        console.error('Error details:', {
+          message: error.message,
+          code: error.code,
+          stack: error.stack
+        });
         discordClient = null;
       });
 
-      // Login
-      await discordClient.login(process.env.DISCORD_BOT_TOKEN);
-      console.log('Discord client login successful');
+      // Login and wait for ready event
+      console.log('Attempting Discord bot login...');
+      
+      // Set up ready promise before login
+      const readyPromise = new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          reject(new Error('Discord client ready timeout after 15 seconds'));
+        }, 15000);
+        
+        discordClient.once('ready', () => {
+          clearTimeout(timeout);
+          console.log('Discord client ready event received');
+          resolve();
+        });
+        
+        discordClient.once('error', (error) => {
+          clearTimeout(timeout);
+          reject(error);
+        });
+      });
+      
+      // Start login
+      await discordClient.login(botToken);
+      console.log('Discord login call completed, waiting for ready event...');
+      
+      // Wait for ready event
+      await readyPromise;
+      console.log('Discord client fully ready and authenticated');
     } catch (error) {
       console.error('Failed to initialize Discord client:', error);
+      console.error('Error details:', {
+        message: error.message,
+        code: error.code,
+        name: error.name,
+        stack: error.stack
+      });
       discordClient = null;
       return null;
     }
