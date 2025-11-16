@@ -1,9 +1,8 @@
 import { parse, serialize } from 'cookie';
 import crypto from 'crypto';
-import pkg from 'pg';
 import fetch from 'node-fetch';
+import { pool } from '../config/database.js';
 import { getRuntimeConfig } from '../../config/runtime.js';
-const { Pool } = pkg;
 
 // Log environment variables being accessed
 console.log('Auth module environment check:', {
@@ -12,12 +11,7 @@ console.log('Auth module environment check:', {
   NODE_ENV: process.env.NODE_ENV
 });
 
-const pool = new Pool({
-  connectionString: process.env.POSTGRES_URL,
-  ssl: {
-    rejectUnauthorized: false
-  }
-});
+// Use shared pool from config/database.js
 
 // Runtime configuration
 const runtime = getRuntimeConfig();
