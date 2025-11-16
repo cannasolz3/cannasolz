@@ -45,7 +45,18 @@ router.get('/', async (req, res) => {
     if (!result.rows[0]) {
       return res.status(404).json({ error: 'User not found' });
     }
-    return res.json(result.rows[0]);
+    // Also include on-chain/token table balance
+    const balanceResult = await pool.query(
+      `SELECT COALESCE(SUM(balance),0) AS balance
+       FROM token_holders
+       WHERE owner_discord_id = $1`,
+      [discordId]
+    );
+    const payload = {
+      ...result.rows[0],
+      balance: Number(balanceResult.rows[0]?.balance || 0)
+    };
+    return res.json(payload);
   } catch (error) {
     console.error('Claim status error:', error);
     return res.status(500).json({ error: 'Internal server error' });

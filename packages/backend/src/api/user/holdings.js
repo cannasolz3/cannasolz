@@ -61,7 +61,7 @@ export default async function handler(req, res) {
       if (walletAddresses.length > 0) {
         const nftResult = await client.query(
           `
-            SELECT mint_address, name, image_url
+            SELECT mint_address, name, image_url, leaf_colour
             FROM nft_metadata
             WHERE owner_wallet = ANY($1::text[])
             ORDER BY name NULLS LAST
