@@ -65,6 +65,10 @@ app.use('/api/auth', wrapHandler(authHandler));
 app.get('/api/rewards/events', wrapHandler(rewardsEventsHandler));
 app.post('/api/rewards/process-daily', wrapHandler(processDailyRewardsHandler));
 
+// Discord role sync endpoint
+const discordSyncHandler = (await import('./api/integrations/discord/sync.js')).default;
+app.post('/api/discord/sync', wrapHandler(discordSyncHandler));
+
 app.use((err, req, res, next) => {
   console.error('[Server] Unhandled error', err);
   if (res.headersSent) {

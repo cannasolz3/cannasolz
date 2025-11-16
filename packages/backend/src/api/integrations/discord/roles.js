@@ -1,5 +1,5 @@
 import { Client, GatewayIntentBits, Partials } from 'discord.js';
-import { pool } from '../../config/database.js';
+import dbPool from '../../config/database.js';
 
 // Cache roles data
 let rolesCache = null;
@@ -57,7 +57,7 @@ async function getRoles() {
     return rolesCache;
   }
 
-  const client = await pool.connect();
+  const client = await dbPool.connect();
   try {
     const result = await client.query('SELECT * FROM roles ORDER BY type, collection');
     rolesCache = result.rows;
@@ -72,7 +72,7 @@ async function getRoles() {
 export async function syncUserRoles(discordId, guildId) {
   console.log(`Syncing roles for user ${discordId} in guild ${guildId}`);
   
-  const client = await pool.connect();
+  const client = await dbPool.connect();
   try {
     // Get user's role flags from user_roles
     const userResult = await client.query(
@@ -173,103 +173,16 @@ export async function syncUserRoles(discordId, guildId) {
 
 // Helper function to check if user should have a role
 function checkRoleEligibility(userRoles, role) {
-  let isEligible = false;
-  
-  switch (role.type) {
-    case 'holder':
-      switch (role.collection) {
-        case 'fcked_catz':
-          isEligible = userRoles.fcked_catz_holder;
-          break;
-        case 'money_monsters':
-          isEligible = userRoles.money_monsters_holder;
-          break;
-        case 'ai_bitbots':
-          isEligible = userRoles.ai_bitbots_holder;
-          break;
-        case 'moneymonsters3d':
-          isEligible = userRoles.moneymonsters3d_holder;
-          break;
-        case 'celebcatz':
-          isEligible = userRoles.celebcatz_holder;
-          break;
-      }
-      break;
-
-    case 'whale':
-      switch (role.collection) {
-        case 'fcked_catz':
-          isEligible = userRoles.fcked_catz_whale;
-          break;
-        case 'money_monsters':
-          isEligible = userRoles.money_monsters_whale;
-          break;
-        case 'ai_bitbots':
-          isEligible = userRoles.ai_bitbots_whale;
-          break;
-        case 'moneymonsters3d':
-          isEligible = userRoles.moneymonsters3d_whale;
-          break;
-      }
-      break;
-
-    case 'token':
-      if (role.collection === 'bux') {
-        switch (role.name) {
-          case 'BUX Beginner':
-            isEligible = userRoles.bux_beginner;
-            break;
-          case 'BUX Builder':
-            isEligible = userRoles.bux_builder;
-            break;
-          case 'BUX Saver':
-            isEligible = userRoles.bux_saver;
-            break;
-          case 'BUX Banker':
-            isEligible = userRoles.bux_banker;
-            break;
-        }
-      }
-      break;
-
-    case 'special':
-      if (role.name === 'BUXDAO 5') {
-        isEligible = userRoles.buxdao_5;
-      }
-      break;
-
-    case 'collab':
-      switch (role.collection) {
-        case 'shxbb':
-          isEligible = userRoles.shxbb_holder;
-          break;
-        case 'ausqrl':
-          isEligible = userRoles.ausqrl_holder;
-          break;
-        case 'aelxaibb':
-          isEligible = userRoles.aelxaibb_holder;
-          break;
-        case 'airb':
-          isEligible = userRoles.airb_holder;
-          break;
-        case 'clb':
-          isEligible = userRoles.clb_holder;
-          break;
-        case 'ddbot':
-          isEligible = userRoles.ddbot_holder;
-          break;
-      }
-      break;
-
-    case 'top10':
-      if (role.collection === 'money_monsters') {
-        isEligible = userRoles.money_monsters_top_10 > 0;
-      } else if (role.collection === 'moneymonsters3d') {
-        isEligible = userRoles.money_monsters_3d_top_10 > 0;
-      }
-      break;
+  // Check if user has this role in their roles JSONB array
+  if (userRoles.roles && Array.isArray(userRoles.roles)) {
+    const hasRole = userRoles.roles.some(r => 
+      r.id === role.discord_role_id || 
+      (r.name === role.name && r.collection === role.collection)
+    );
+    console.log(`Checking eligibility for ${role.name} (${role.discord_role_id}): ${hasRole}`);
+    return hasRole;
   }
-
-  console.log(`Checking eligibility for ${role.name}: ${isEligible}`);
-  return isEligible;
+  
+  console.log(`No roles array found for user, checking eligibility for ${role.name}: false`);
+  return false;
 } 
