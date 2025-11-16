@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import express from 'express';
+import expressPkg from 'express';
 import cors from 'cors';
 import session from 'express-session';
 import dotenv from 'dotenv';
@@ -23,7 +23,7 @@ const rewardsEventsHandler = (await import('./api/rewards/events.js')).default;
 const processDailyRewardsHandler = (await import('./api/rewards/process-daily.js')).default;
 
 const runtime = getRuntimeConfig();
-const app = express();
+const app = expressPkg();
 const PORT = process.env.PORT || 3001;
 const FRONTEND_ORIGIN = runtime.frontendUrl;
 
@@ -32,8 +32,8 @@ app.use(cors({
   origin: FRONTEND_ORIGIN,
   credentials: true
 }));
-app.use(express.json({ limit: '5mb' }));
-app.use(express.urlencoded({ extended: true }));
+app.use(expressPkg.json({ limit: '5mb' }));
+app.use(expressPkg.urlencoded({ extended: true }));
 app.use(session({
   secret: process.env.SESSION_SECRET || 'change-me',
   resave: false,
