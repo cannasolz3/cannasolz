@@ -1,4 +1,4 @@
-import { pool } from '../config/database.js';
+import dbPool from '../config/database.js';
 import { parse } from 'cookie';
 
 export default async function handler(req, res) {
@@ -15,7 +15,7 @@ export default async function handler(req, res) {
 
   let client;
   try {
-    client = await pool.connect();
+    client = await dbPool.connect();
     console.log('Fetching roles for discord_id:', discordUser.discord_id);
 
     // Load full user role flags

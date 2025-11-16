@@ -86,7 +86,7 @@ const respondClaimsDisabled = (res) => res.status(503).json({
 });
 
 // Add treasury check endpoint
-router.get('/treasury-check', async (req, res) => {
+userClaimRouter.get('/treasury-check', async (req, res) => {
   if (claimsDisabled) {
     return respondClaimsDisabled(res);
   }
@@ -182,7 +182,7 @@ router.get('/treasury-check', async (req, res) => {
 });
 
 // Add treasury check endpoint
-router.get('/check-balance', async (req, res) => {
+userClaimRouter.get('/check-balance', async (req, res) => {
   if (claimsDisabled) {
     return respondClaimsDisabled(res);
   }
@@ -192,7 +192,7 @@ router.get('/check-balance', async (req, res) => {
     // Get treasury token account
     const treasuryTokenAccount = await getOrCreateAssociatedTokenAccount(
       connection,
-      TREASURY_WALLET.publicKey,
+      TREASURY_WALLET,
       REWARD_MINT,
       TREASURY_WALLET.publicKey,
       true // allowOwnerOffCurve
@@ -249,7 +249,7 @@ userClaimRouter.post('/', async (req, res) => {
     }
 
     // Check user's unclaimed rewards using discord_id from session (like balance endpoint)
-    const userResult = await pool.query(
+    const userResult = await dbPool.query(
       'SELECT unclaimed_amount FROM claim_accounts WHERE discord_id = $1',
       [req.session.user.discord_id]
     );
@@ -346,7 +346,7 @@ userClaimRouter.post('/confirm', async (req, res) => {
 
   let client;
   try {
-    client = await pool.connect();
+    client = await dbPool.connect();
     await client.query('BEGIN');
 
     // Ensure tables exist with correct schema
@@ -535,7 +535,7 @@ userClaimRouter.post('/finalize', async (req, res) => {
   let client;
 
   try {
-    client = await pool.connect();
+    client = await dbPool.connect();
     await client.query('BEGIN');
 
     // Get user's Discord ID from session

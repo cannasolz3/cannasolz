@@ -31,8 +31,8 @@ export const UserProvider = ({ children }) => {
           credentials: 'include',
           headers: { 'Accept': 'application/json' }
         }).then(r => r.ok ? r.json() : { roles: [] }).catch(() => ({ roles: [] }));
-        // Fetch token balance from claim endpoint
-        const claimPromise = fetch(`${API_BASE_URL}/api/user/claim`, {
+        // Fetch token balance from balance endpoint
+        const claimPromise = fetch(`${API_BASE_URL}/api/user/balance`, {
           credentials: 'include',
           headers: { 'Accept': 'application/json' }
         }).then(r => r.ok ? r.json() : {}).catch(() => ({}));

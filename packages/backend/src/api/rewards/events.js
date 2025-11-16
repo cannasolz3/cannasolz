@@ -24,7 +24,7 @@ export default async function handler(req, res) {
   res.write('data: {"type":"connected"}\n\n');
 
   try {
-    const client = await pool.connect();
+    const client = await dbPool.connect();
     await client.query('LISTEN rewards_processed');
     client.on('notification', (msg) => {
       if (msg.channel === 'rewards_processed') {
