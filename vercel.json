@@ -3,7 +3,8 @@
   "buildCommand": "npm run -w packages/frontend build",
   "outputDirectory": "packages/frontend/dist",
   "routes": [
-    { "src": "/favicon.ico", "dest": "/favicon.png" },
+    { "src": "/favicon.ico", "dest": "/favicon.jpeg" },
+    { "src": "/favicon.png", "dest": "/favicon.jpeg" },
     { "src": "/api/(.*)", "dest": "api/index.mjs" },
     { "src": "/health", "dest": "api/index.mjs" }
   ]
