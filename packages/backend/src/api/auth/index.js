@@ -3,7 +3,6 @@ import crypto from 'crypto';
 import pkg from 'pg';
 import fetch from 'node-fetch';
 import { getRuntimeConfig } from '../../config/runtime.js';
-import { syncUserRoles } from '../integrations/discord/roles.js';
 const { Pool } = pkg;
 
 // Log environment variables being accessed
@@ -512,16 +511,6 @@ async function handleWallet(req, res) {
 
       await client.query('COMMIT');
       await syncDiscordDisplayName(user);
-      // Attempt to sync Discord roles if bot config present
-      try {
-        const guildId = runtime.discord?.guildId;
-        if (guildId && user.discord_id) {
-          console.log('[Roles Sync] Triggering role sync for', user.discord_id, 'guild', guildId);
-          await syncUserRoles(user.discord_id, guildId);
-        }
-      } catch (e) {
-        console.warn('[Roles Sync] Skipped or failed:', e.message);
-      }
       return res.status(200).json({ success: true });
     } catch (error) {
       console.error('[Wallet Debug] Database error:', error);
