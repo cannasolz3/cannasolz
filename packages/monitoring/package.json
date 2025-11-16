@@ -7,7 +7,8 @@
     "start": "node src/cron.js",
     "process-daily": "node src/process-daily-rewards.js",
     "sync-roles": "node src/sync-roles.js",
-    "sync-holders": "node src/sync-holders.js"
+    "sync-holders": "node src/sync-holders.js",
+    "ownership-changes": "node src/ownership-changes.js"
   },
   "dependencies": {
     "axios": "^1.6.0",

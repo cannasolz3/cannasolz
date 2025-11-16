@@ -73,6 +73,11 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Internal server error', details: err.message });
 });
 
-app.listen(PORT, () => {
-  console.log(`Backend listening on port ${PORT}`);
-});
+// Only start a listener when running locally (not in Vercel serverless)
+if (!process.env.VERCEL) {
+  app.listen(PORT, () => {
+    console.log(`Backend listening on port ${PORT}`);
+  });
+}
+
+export default app;

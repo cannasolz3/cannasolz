@@ -66,6 +66,50 @@ router.post('/', async (req, res) => {
         );
       }
 
+      // Sync ownership in nft_metadata for this wallet
+      await client.query(
+        `
+          UPDATE nft_metadata
+          SET owner_discord_id = $1,
+              owner_name = $2
+          WHERE owner_wallet = $3
+        `,
+        [discordUser.discord_id, discordUser.discord_username, wallet_address]
+      );
+
+      // Upsert collection_counts per-colour and totals for this user
+      await client.query(
+        `
+          INSERT INTO collection_counts (
+            discord_id, discord_name,
+            gold_count, silver_count, purple_count, dark_green_count, light_green_count,
+            total_count, last_updated
+          )
+          SELECT
+            $1 AS discord_id,
+            $2 AS discord_name,
+            COUNT(*) FILTER (WHERE nm.leaf_colour = 'Gold')        AS gold_count,
+            COUNT(*) FILTER (WHERE nm.leaf_colour = 'Silver')      AS silver_count,
+            COUNT(*) FILTER (WHERE nm.leaf_colour = 'Purple')      AS purple_count,
+            COUNT(*) FILTER (WHERE nm.leaf_colour = 'Dark green')  AS dark_green_count,
+            COUNT(*) FILTER (WHERE nm.leaf_colour = 'Light green') AS light_green_count,
+            COUNT(*) AS total_count,
+            NOW() AS last_updated
+          FROM nft_metadata nm
+          WHERE nm.owner_discord_id = $1
+          ON CONFLICT (discord_id) DO UPDATE SET
+            discord_name = EXCLUDED.discord_name,
+            gold_count = EXCLUDED.gold_count,
+            silver_count = EXCLUDED.silver_count,
+            purple_count = EXCLUDED.purple_count,
+            dark_green_count = EXCLUDED.dark_green_count,
+            light_green_count = EXCLUDED.light_green_count,
+            total_count = EXCLUDED.total_count,
+            last_updated = NOW()
+        `,
+        [discordUser.discord_id, discordUser.discord_username]
+      );
+
       await client.query('COMMIT');
 
       res.json({ 

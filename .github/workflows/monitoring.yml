@@ -1,0 +1,38 @@
+name: Monitoring cron
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch: {}
+
+jobs:
+  ownership-and-holders:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - name: Install
+        run: npm ci
+      - name: Update token holders
+        env:
+          POSTGRES_URL: ${{ secrets.POSTGRES_URL }}
+          SOLANA_RPC_URL: ${{ secrets.SOLANA_RPC_URL }}
+          TOKEN_MINT: ${{ secrets.TOKEN_MINT }}
+        run: node scripts/seed-token-holders.mjs
+      - name: Detect NFT ownership changes and post to Discord
+        working-directory: packages/monitoring
+        env:
+          POSTGRES_URL: ${{ secrets.POSTGRES_URL }}
+          HELIUS_API_KEY: ${{ secrets.HELIUS_API_KEY }}
+          COLLECTION_ADDRESS: ${{ secrets.COLLECTION_ADDRESS }}
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+          DISCORD_ACTIVITY_CHANNEL_ID: ${{ secrets.DISCORD_ACTIVITY_CHANNEL_ID }}
+        run: npm run ownership-changes
+
+
