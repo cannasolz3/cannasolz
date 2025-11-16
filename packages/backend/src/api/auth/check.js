@@ -1,8 +1,8 @@
-import express from 'express';
+import expressPkg from 'express';
 import { parse } from 'cookie';
 import { pool } from '../config/database.js';
 
-const router = express.Router();
+const router = expressPkg.Router();
 
 router.get('/', async (req, res) => {
   let client;

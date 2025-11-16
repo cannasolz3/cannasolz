@@ -1,8 +1,8 @@
-import express from 'express';
+import expressPkg from 'express';
 import { pool } from '../config/database.js';
 import { getRuntimeConfig } from '../../config/runtime.js';
 
-const router = express.Router();
+const router = expressPkg.Router();
 const runtime = getRuntimeConfig();
 const FRONTEND_URL = runtime.frontendUrl;
 const SESSION_COOKIE_NAME = process.env.SESSION_COOKIE_NAME || 'connect.sid';

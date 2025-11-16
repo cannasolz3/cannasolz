@@ -1,8 +1,8 @@
-import express from 'express';
+import expressPkg from 'express';
 import { pool } from '../config/database.js';
 import { parse } from 'cookie';
 
-const router = express.Router();
+const router = expressPkg.Router();
 
 // GET /api/user/wallets - returns all wallets linked to the current Discord user
 router.get('/', async (req, res) => {

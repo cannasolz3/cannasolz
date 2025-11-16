@@ -1,11 +1,11 @@
-import express from 'express';
+import expressPkg from 'express';
 import { PublicKey, Connection } from '@solana/web3.js';
 import { parse } from 'cookie';
 import pkg from 'pg';
 const { Pool } = pkg;
 import { pool } from '../config/database.js';
 
-const router = express.Router();
+const router = expressPkg.Router();
 
 const DISCORD_GUILD_ID = process.env.DISCORD_GUILD_ID;
 const RPC_URL = process.env.SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com';

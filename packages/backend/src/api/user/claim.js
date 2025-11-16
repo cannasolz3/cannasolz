@@ -1,4 +1,4 @@
-import express from 'express';
+import expressPkg from 'express';
 import { Connection, PublicKey, Transaction, Keypair } from '@solana/web3.js';
 import { TOKEN_PROGRAM_ID, getOrCreateAssociatedTokenAccount, createTransferInstruction, getAccount, createApproveInstruction, getAssociatedTokenAddress, createAssociatedTokenAccountInstruction } from '@solana/spl-token';
 import bs58 from 'bs58';
@@ -7,7 +7,7 @@ import nacl from 'tweetnacl';
 import { getRuntimeConfig } from '../../config/runtime.js';
 import { parse } from 'cookie';
 
-const router = express.Router();
+const router = expressPkg.Router();
 
 const runtime = getRuntimeConfig();
 

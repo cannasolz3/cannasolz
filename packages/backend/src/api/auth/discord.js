@@ -1,7 +1,7 @@
-import express from 'express';
+import expressPkg from 'express';
 import crypto from 'crypto';
 
-const router = express.Router();
+const router = expressPkg.Router();
 
 const FRONTEND_URL = process.env.FRONTEND_URL || (process.env.NODE_ENV === 'production'
   ? 'https://buxdao.com'

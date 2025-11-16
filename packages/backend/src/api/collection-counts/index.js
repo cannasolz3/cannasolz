@@ -1,7 +1,7 @@
-import express from 'express';
+import expressPkg from 'express';
 import { pool } from '../config/database.js';
 
-const router = express.Router();
+const router = expressPkg.Router();
 
 router.get('/:discord_id', async (req, res) => {
   const discord_id = req.params.discord_id;
