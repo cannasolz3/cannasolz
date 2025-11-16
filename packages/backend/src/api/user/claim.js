@@ -10,6 +10,29 @@ const router = express.Router();
 
 const runtime = getRuntimeConfig();
 
+// New: GET /api/user/claim - return claim status for current user
+router.get('/', async (req, res) => {
+  try {
+    if (!req.session?.user?.discord_id) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+    const discordId = req.session.user.discord_id;
+    const result = await pool.query(
+      `SELECT discord_id, unclaimed_amount, total_claimed, last_claim_time
+       FROM claim_accounts
+       WHERE discord_id = $1`,
+      [discordId]
+    );
+    if (!result.rows[0]) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    return res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Claim status error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 const missingConfig = [];
 if (!runtime.solana?.tokenMint) {
   missingConfig.push('token mint');
