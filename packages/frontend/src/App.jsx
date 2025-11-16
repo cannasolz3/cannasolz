@@ -77,7 +77,10 @@ function Home() {
           <img src={heroThumbnail} alt={`${projectName} thumbnail`} />
         </div>
         <div className="hero-copy">
-          <p className="eyebrow">{heroEyebrow}</p>
+          <p className="eyebrow">
+            <span className="eyebrow-main">{projectName} Holder Portal</span>
+            <span className="eyebrow-powered">[POWERED BY BUXDAO]</span>
+          </p>
           <h1>{heroTitle}</h1>
           <div className="hero-lede-row">
             <p className="lede">{heroCopy}</p>
@@ -92,7 +95,7 @@ function Home() {
         </div>
       </header>
       <main className="app-grid single">
-        <section className="panel">
+        <section className="panel container-panel">
           <UserProfile />
         </section>
       </main>

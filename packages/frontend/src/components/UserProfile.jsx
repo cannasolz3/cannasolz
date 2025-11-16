@@ -328,11 +328,11 @@ const UserProfile = () => {
   return (
     <div className="space-y-6">
       <h2 className="text-6xl font-bold text-purple-400 text-center">My CannaSolz</h2>
-      <div className="p-8 mx-8 space-y-8">
+      <div className="p-8 space-y-8 userprofile-wrap">
         {/* Top Row Grid - NFTs and Roles */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* NFT Holdings */}
-          <div className="bg-gradient-to-br from-gray-900/90 to-gray-800/90 rounded-lg p-6 shadow-lg backdrop-blur-sm border border-fuchsia-500/20">
+          <div className="tile bg-gradient-to-br from-gray-900/90 to-gray-800/90 rounded-lg p-6 shadow-lg backdrop-blur-sm border border-fuchsia-500/20">
             <h3 className="text-xl font-semibold text-white mb-4 flex items-center gap-2">
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7zm4 1.5l3 3 2-2 4 4 2-2.5" />
@@ -388,7 +388,7 @@ const UserProfile = () => {
           </div>
 
           {/* Roles Display */}
-          <div className="bg-gradient-to-br from-gray-900/90 to-gray-800/90 rounded-lg p-6 shadow-lg backdrop-blur-sm border border-fuchsia-500/20">
+          <div className="tile bg-gradient-to-br from-gray-900/90 to-gray-800/90 rounded-lg p-6 shadow-lg backdrop-blur-sm border border-fuchsia-500/20">
             <h3 className="text-xl font-semibold text-white mb-4 flex items-center gap-2">
               <DiscordIcon className="w-6 h-6 text-white" />
               My Roles
@@ -427,7 +427,7 @@ const UserProfile = () => {
 
         {/* Bottom Claim Section */}
         {/* Bottom Claim Section */}
-        <div className="bg-gradient-to-br from-gray-900/90 to-gray-800/90 rounded-lg p-6 shadow-lg backdrop-blur-sm border border-fuchsia-500/20">
+        <div className="tile bg-gradient-to-br from-gray-900/90 to-gray-800/90 rounded-lg p-6 shadow-lg backdrop-blur-sm border border-fuchsia-500/20">
           <h3 className="text-xl font-semibold text-white mb-4 flex items-center gap-2">
             <svg className="w-6 h-6" fill="white" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
               <path d="M 21 4 C 19.207031 4 17.582031 4.335938 16.3125 4.96875 C 15.042969 5.601563 14 6.632813 14 8 L 14 12 C 14 12.128906 14.042969 12.253906 14.0625 12.375 C 13.132813 12.132813 12.101563 12 11 12 C 9.207031 12 7.582031 12.335938 6.3125 12.96875 C 5.042969 13.601563 4 14.632813 4 16 L 4 24 C 4 25.367188 5.042969 26.398438 6.3125 27.03125 C 7.582031 27.664063 9.207031 28 11 28 C 12.792969 28 14.417969 27.664063 15.6875 27.03125 C 16.957031 26.398438 18 25.367188 18 24 L 18 23.59375 C 18.917969 23.835938 19.921875 24 21 24 C 22.792969 24 24.417969 23.664063 25.6875 23.03125 C 26.957031 22.398438 28 21.367188 28 20 L 28 8 C 28 6.632813 26.957031 5.601563 25.6875 4.96875 C 24.417969 4.335938 22.792969 4 21 4 Z" />

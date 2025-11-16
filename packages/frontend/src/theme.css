@@ -262,6 +262,24 @@
 }
 
 @media (max-width: 520px) {
+  /* Widen the outer container panel and remove inner side padding constraints */
+  .container-panel {
+    width: 100%;
+    max-width: 100%;
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+    box-sizing: border-box;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  /* Header: image left, eyebrow to the right (two lines), rest below naturally */
+  .app-header { align-items: center; }
+  .hero-media { flex-basis: 72px; }
+  .hero-media img { width: 72px; height: 72px; }
+  .hero-copy { flex: 1 1 auto; min-width: 0; }
+  .eyebrow { display: block; margin-bottom: 0.25rem; }
+  .eyebrow-powered { display: block; }
+
   .app-header h1 {
     font-size: clamp(1.8rem, 8vw, 2.6rem);
   }
@@ -270,7 +288,39 @@
     font-size: 0.95rem;
   }
 
-  .panel {
+  /* Center grid items and make each tile fill the container without overflow */
+  .app-grid.single {
+    justify-items: center;
+    grid-template-columns: minmax(0, 1fr);
+    padding-left: 0;
+    padding-right: 0;
+    width: 100%;
+  }
+  .app-grid.single .panel {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
+    margin-left: auto;
+    margin-right: auto;
     padding: 1rem;
+  }
+
+  /* Ensure the title fits on one line on mobile */
+  .my-cannasolz-title {
+    font-size: clamp(0.9rem, 4vw, 1.1rem) !important;
+    line-height: 1.1;
+    white-space: nowrap;
+  }
+
+  /* Center grid items */
+  .app-grid.single { justify-items: center; }
+
+  /* Make the actual tiles fill the container */
+  .tile {
+    width: 100%;
+    max-width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+    box-sizing: border-box;
   }
 }
