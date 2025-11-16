@@ -1,6 +1,6 @@
 import expressPkg from 'express';
 import { parse } from 'cookie';
-import { pool } from '../config/database.js';
+import dbPool from '../config/database.js';
 
 const router = expressPkg.Router();
 
@@ -32,7 +32,7 @@ router.get('/', async (req, res) => {
       let dbRetries = 3;
       while (dbRetries > 0) {
         try {
-          client = await pool.connect();
+          client = await dbPool.connect();
           const result = await client.query(
             'SELECT wallet_address FROM user_wallets WHERE discord_id = $1',
             [discordUser.discord_id]

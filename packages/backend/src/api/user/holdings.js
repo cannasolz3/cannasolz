@@ -1,4 +1,4 @@
-import { pool } from '../config/database.js';
+import dbPool from '../config/database.js';
 import { parse } from 'cookie';
 
 export default async function handler(req, res) {
@@ -30,7 +30,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const client = await pool.connect();
+    const client = await dbPool.connect();
 
     try {
       const discordId = req.session.user.discord_id;

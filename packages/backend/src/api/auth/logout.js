@@ -1,5 +1,5 @@
 import expressPkg from 'express';
-import { pool } from '../config/database.js';
+import dbPool from '../config/database.js';
 import { getRuntimeConfig } from '../../config/runtime.js';
 
 const router = expressPkg.Router();
@@ -44,7 +44,7 @@ router.post('/', async (req, res) => {
 
     let client;
     try {
-      client = await pool.connect();
+      client = await dbPool.connect();
       await client.query('DELETE FROM "session" WHERE sid = $1', [req.sessionID]);
     } catch (dbError) {
       console.error('Database error during logout:', dbError);

@@ -1,5 +1,5 @@
 import expressPkg from 'express';
-import { pool } from '../config/database.js';
+import dbPool from '../config/database.js';
 import { parse } from 'cookie';
 
 const router = expressPkg.Router();
@@ -25,7 +25,7 @@ router.get('/', async (req, res) => {
     if (!req.session?.user?.discord_id) {
       return res.status(401).json({ error: 'Not authenticated' });
     }
-    const { rows } = await pool.query(
+    const { rows } = await dbPool.query(
       `SELECT COALESCE(SUM(balance),0) AS balance
        FROM token_holders
        WHERE owner_discord_id = $1`,

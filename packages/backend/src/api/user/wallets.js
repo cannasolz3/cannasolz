@@ -1,5 +1,5 @@
 import expressPkg from 'express';
-import { pool } from '../config/database.js';
+import dbPool from '../config/database.js';
 import { parse } from 'cookie';
 
 const router = expressPkg.Router();
@@ -28,7 +28,7 @@ router.get('/', async (req, res) => {
     return res.status(401).json({ error: 'Not authenticated' });
   }
   try {
-    const result = await pool.query(
+    const result = await dbPool.query(
       'SELECT wallet_address FROM user_wallets WHERE discord_id = $1',
       [req.session.user.discord_id]
     );
@@ -72,7 +72,7 @@ router.post('/', async (req, res) => {
     const discordName = req.session.user.discord_username || req.session.user.discord_name || null;
 
     // Insert wallet if not already present
-    await pool.query(
+    await dbPool.query(
       `INSERT INTO user_wallets (discord_id, wallet_address, discord_name)
        VALUES ($1, $2, $3)
        ON CONFLICT (discord_id, wallet_address) DO UPDATE SET discord_name = EXCLUDED.discord_name`,
@@ -80,7 +80,7 @@ router.post('/', async (req, res) => {
     );
 
     // Sync ownership in nft_metadata for this wallet
-    await pool.query(
+    await dbPool.query(
       `
         UPDATE nft_metadata
         SET owner_discord_id = $1,

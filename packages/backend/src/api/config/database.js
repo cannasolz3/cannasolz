@@ -174,4 +174,5 @@ async function getClient() {
 }
 
 // Export both pool and getClient
-export { pool, getClient, healthCheck };
+export default pool;
+export { getClient, healthCheck };

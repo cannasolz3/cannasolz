@@ -1,7 +1,7 @@
 import { parse, serialize } from 'cookie';
 import crypto from 'crypto';
 import fetch from 'node-fetch';
-import { pool } from '../config/database.js';
+import dbPool from '../config/database.js';
 import { getRuntimeConfig } from '../../config/runtime.js';
 
 // Log environment variables being accessed
@@ -52,7 +52,7 @@ async function syncDiscordDisplayName(discordUser) {
   const displayName = discordUser.discord_display_name || discordUser.discord_username;
   if (!discordId || !displayName) return;
 
-  const client = await pool.connect();
+  const client = await dbPool.connect();
   try {
     await client.query('BEGIN');
     await client.query(
@@ -186,7 +186,7 @@ async function handleCheck(req, res) {
     }
 
     // Fetch wallet address from database
-    const client = await pool.connect();
+    const client = await dbPool.connect();
     try {
       const result = await client.query(
         'SELECT wallet_address FROM user_wallets WHERE discord_id = $1 ORDER BY is_primary DESC, last_used DESC LIMIT 1',
@@ -489,7 +489,7 @@ async function handleWallet(req, res) {
     }
 
     // Update database
-    const client = await pool.connect();
+    const client = await dbPool.connect();
     try {
       await client.query('BEGIN');
       

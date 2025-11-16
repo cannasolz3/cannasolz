@@ -2,7 +2,7 @@ import expressPkg from 'express';
 import { Connection, PublicKey, Transaction, Keypair } from '@solana/web3.js';
 import { TOKEN_PROGRAM_ID, getOrCreateAssociatedTokenAccount, createTransferInstruction, getAccount, createApproveInstruction, getAssociatedTokenAddress, createAssociatedTokenAccountInstruction } from '@solana/spl-token';
 import bs58 from 'bs58';
-import { pool } from '../config/database.js';
+import dbPool from '../config/database.js';
 import nacl from 'tweetnacl';
 import { getRuntimeConfig } from '../../config/runtime.js';
 import { parse } from 'cookie';
@@ -36,7 +36,7 @@ router.get('/', async (req, res) => {
       return res.status(401).json({ error: 'Not authenticated' });
     }
     const discordId = req.session.user.discord_id;
-    const result = await pool.query(
+    const result = await dbPool.query(
       `SELECT discord_id, unclaimed_amount, total_claimed, last_claim_time
        FROM claim_accounts
        WHERE discord_id = $1`,
@@ -46,7 +46,7 @@ router.get('/', async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
     // Also include on-chain/token table balance
-    const balanceResult = await pool.query(
+    const balanceResult = await dbPool.query(
       `SELECT COALESCE(SUM(balance),0) AS balance
        FROM token_holders
        WHERE owner_discord_id = $1`,

@@ -1,5 +1,5 @@
 import { getRuntimeConfig } from '../../config/runtime.js';
-import { pool } from '../config/database.js';
+import dbPool from '../config/database.js';
 
 const runtime = getRuntimeConfig();
 const ORIGIN = runtime.frontendUrl;

@@ -1,4 +1,4 @@
-import { pool } from '../config/database.js';
+import dbPool from '../config/database.js';
 
 export default async function handler(req, res) {
   // Only allow POST requests
