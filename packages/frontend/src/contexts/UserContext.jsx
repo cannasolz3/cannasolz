@@ -26,23 +26,23 @@ export const UserProvider = ({ children }) => {
       const data = await response.json();
       
       if (data.authenticated && data.user) {
-        const rolesResponse = await fetch(`${API_BASE_URL}/api/auth/roles`, {
+        // Fetch roles
+        const rolesPromise = fetch(`${API_BASE_URL}/api/auth/roles`, {
           credentials: 'include',
-          headers: {
-            'Accept': 'application/json'
-          }
+          headers: { 'Accept': 'application/json' }
+        }).then(r => r.ok ? r.json() : { roles: [] }).catch(() => ({ roles: [] }));
+        // Fetch token balance from claim endpoint
+        const claimPromise = fetch(`${API_BASE_URL}/api/user/claim`, {
+          credentials: 'include',
+          headers: { 'Accept': 'application/json' }
+        }).then(r => r.ok ? r.json() : {}).catch(() => ({}));
+        const [rolesData, claimData] = await Promise.all([rolesPromise, claimPromise]);
+        setDiscordUser({
+          ...data.user,
+          roles: rolesData.roles || [],
+          discord_roles: rolesData.roles || [],
+          token_balance: Number(claimData.balance || 0).toFixed(2)
         });
-
-        if (rolesResponse.ok) {
-          const rolesData = await rolesResponse.json();
-          setDiscordUser({
-            ...data.user,
-            roles: rolesData.roles,
-            discord_roles: rolesData.roles
-          });
-        } else {
-          setDiscordUser(data.user);
-        }
       } else {
         setDiscordUser(null);
       }
