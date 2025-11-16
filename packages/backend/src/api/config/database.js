@@ -28,62 +28,60 @@ console.log('Initializing database connection pool...', {
   ssl: process.env.NODE_ENV === 'production'
 });
 
-// Create the pool with improved configuration for serverless environment
-const pool = new Pool({
-  connectionString,
-  ssl: process.env.NODE_ENV === 'production' ? {
-    rejectUnauthorized: false
-  } : false,
-  max: 10, // Reduced for serverless - maximum number of clients in the pool
-  min: 0,  // Start with no idle clients for serverless
-  idleTimeoutMillis: 30000, // Close idle clients after 30 seconds
-  connectionTimeoutMillis: 5000, // Return an error after 5 seconds if connection could not be established
-  maxUses: 1000, // Number of times a client can be used before being destroyed
-  keepAlive: true, // Keep connections alive
-  keepAliveInitialDelayMillis: 5000, // Delay before starting keep-alive probes
-  statement_timeout: 10000, // 10 seconds
-  idle_in_transaction_session_timeout: 10000, // 10 seconds
-  query_timeout: 10000 // 10 seconds
-});
-
-// Add pool error handler with reconnection logic
-pool.on('error', (err, client) => {
-  console.error('Unexpected error on idle client', err);
-  if (err.code === '25P03') { // idle-in-transaction timeout
-    try {
-      client.query('ROLLBACK');
-    } catch (rollbackError) {
-      console.error('Error rolling back timed out transaction:', rollbackError);
-    }
-  }
-});
-
-// Add pool connect handler with logging
-pool.on('connect', client => {
-  console.log('New client connected to pool');
-  
-  // Set session configuration
-  client.query(`
-    SET statement_timeout = 10000;
-    SET idle_in_transaction_session_timeout = 10000;
-    SET lock_timeout = 5000;
-    SET tcp_keepalives_idle = 30;
-    SET tcp_keepalives_interval = 5;
-    SET tcp_keepalives_count = 3;
-  `).catch(err => {
-    console.error('Error configuring client session:', err);
+// Create or reuse a singleton pool (prevents redeclaration in bundled serverless)
+let pool = globalThis.__CANNASOLZ_DB_POOL;
+if (!pool) {
+  pool = new Pool({
+    connectionString,
+    ssl: process.env.NODE_ENV === 'production' ? {
+      rejectUnauthorized: false
+    } : false,
+    max: 10,
+    min: 0,
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 5000,
+    maxUses: 1000,
+    keepAlive: true,
+    keepAliveInitialDelayMillis: 5000,
+    statement_timeout: 10000,
+    idle_in_transaction_session_timeout: 10000,
+    query_timeout: 10000
   });
-});
+  globalThis.__CANNASOLZ_DB_POOL = pool;
+}
 
-// Add pool acquire handler
-pool.on('acquire', client => {
-  console.log('Client acquired from pool');
-});
-
-// Add pool remove handler with reconnection attempt
-pool.on('remove', client => {
-  console.log('Client removed from pool');
-});
+// Attach listeners only once
+if (!globalThis.__CANNASOLZ_DB_POOL_LISTENERS_ATTACHED) {
+  // Add pool error handler with reconnection logic
+  pool.on('error', (err, client) => {
+    console.error('Unexpected error on idle client', err);
+    if (err.code === '25P03') {
+      try {
+        client.query('ROLLBACK');
+      } catch (rollbackError) {
+        console.error('Error rolling back timed out transaction:', rollbackError);
+      }
+    }
+  });
+  // Add pool connect handler with logging
+  pool.on('connect', client => {
+    console.log('New client connected to pool');
+    client.query(`
+      SET statement_timeout = 10000;
+      SET idle_in_transaction_session_timeout = 10000;
+      SET lock_timeout = 5000;
+      SET tcp_keepalives_idle = 30;
+      SET tcp_keepalives_interval = 5;
+      SET tcp_keepalives_count = 3;
+    `).catch(err => {
+      console.error('Error configuring client session:', err);
+    });
+  });
+  // Add pool acquire/remove handlers
+  pool.on('acquire', () => console.log('Client acquired from pool'));
+  pool.on('remove', () => console.log('Client removed from pool'));
+  globalThis.__CANNASOLZ_DB_POOL_LISTENERS_ATTACHED = true;
+}
 
 // Health check function
 async function healthCheck() {
