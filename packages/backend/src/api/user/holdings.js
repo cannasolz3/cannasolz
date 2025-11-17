@@ -35,7 +35,7 @@ export default async function handler(req, res) {
     try {
       const discordId = req.session.user.discord_id;
 
-      const [countsResult, walletsResult, cnftCountsResult] = await Promise.all([
+      const [countsResult, walletsResult] = await Promise.all([
         client.query(
           `
             SELECT 
@@ -45,7 +45,13 @@ export default async function handler(req, res) {
               COALESCE(dark_green_count, 0) as dark_green_count,
               COALESCE(light_green_count, 0) as light_green_count,
               COALESCE(og420_count, 0) as og420_count,
-              COALESCE(total_count, 0) as total_count
+              COALESCE(total_count, 0) as total_count,
+              COALESCE(cnft_gold_count, 0) as cnft_gold_count,
+              COALESCE(cnft_silver_count, 0) as cnft_silver_count,
+              COALESCE(cnft_purple_count, 0) as cnft_purple_count,
+              COALESCE(cnft_dark_green_count, 0) as cnft_dark_green_count,
+              COALESCE(cnft_light_green_count, 0) as cnft_light_green_count,
+              COALESCE(cnft_total_count, 0) as cnft_total_count
             FROM collection_counts
             WHERE discord_id = $1
           `,
@@ -58,31 +64,21 @@ export default async function handler(req, res) {
             WHERE discord_id = $1
           `,
           [discordId]
-        ),
-        client.query(
-          `
-            SELECT 
-              COUNT(*) FILTER (WHERE symbol = 'seedling_gold') as gold_count,
-              COUNT(*) FILTER (WHERE symbol = 'seedling_silver') as silver_count,
-              COUNT(*) FILTER (WHERE symbol = 'seedling_purple') as purple_count,
-              COUNT(*) FILTER (WHERE symbol = 'seedling_dark_green') as dark_green_count,
-              COUNT(*) FILTER (WHERE symbol = 'seedling_light_green') as light_green_count,
-              COUNT(*) as total_count
-            FROM nft_metadata nm
-            WHERE nm.symbol LIKE 'seedling_%'
-            AND EXISTS (
-              SELECT 1 FROM user_wallets uw 
-              WHERE uw.discord_id = $1 
-              AND uw.wallet_address = nm.owner_wallet
-            )
-          `,
-          [discordId]
         )
       ]);
 
       const counts = countsResult.rows[0] || {};
-      const cnftCounts = cnftCountsResult.rows[0] || {};
       const walletAddresses = walletsResult.rows.map(row => row.wallet_address).filter(Boolean);
+      
+      // Extract cNFT counts from collection_counts
+      const cnftCounts = {
+        gold: counts.cnft_gold_count || 0,
+        silver: counts.cnft_silver_count || 0,
+        purple: counts.cnft_purple_count || 0,
+        dark_green: counts.cnft_dark_green_count || 0,
+        light_green: counts.cnft_light_green_count || 0,
+        total: counts.cnft_total_count || 0
+      };
 
       // Daily yield rates per NFT (regular NFTs)
       const yieldRates = {

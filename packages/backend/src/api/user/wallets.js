@@ -91,29 +91,49 @@ userWalletsRouter.post('/', async (req, res) => {
     );
 
     // Upsert collection_counts per-colour and totals for this user
+    // First ensure cNFT columns exist
+    try {
+      await dbPool.query(`
+        ALTER TABLE collection_counts 
+        ADD COLUMN IF NOT EXISTS cnft_gold_count INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS cnft_silver_count INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS cnft_purple_count INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS cnft_dark_green_count INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS cnft_light_green_count INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS cnft_total_count INTEGER DEFAULT 0
+      `);
+    } catch (error) {
+      // Columns might already exist, ignore
+      if (error.code !== '42701') console.error('Error adding cNFT columns:', error.message);
+    }
+
     await dbPool.query(
       `
         INSERT INTO collection_counts (
           discord_id, discord_name,
           gold_count, silver_count, purple_count, dark_green_count, light_green_count,
-          og420_count, total_count, last_updated
+          og420_count, total_count,
+          cnft_gold_count, cnft_silver_count, cnft_purple_count, cnft_dark_green_count, cnft_light_green_count, cnft_total_count,
+          last_updated
         )
         SELECT
           $1::varchar AS discord_id,
           $2::varchar AS discord_name,
-          -- Regular NFTs by leaf_colour + cNFTs by symbol
-          COUNT(*) FILTER (WHERE nm.leaf_colour = 'Gold' AND (nm.symbol IS NULL OR nm.symbol NOT LIKE 'seedling_%')) +
-          COUNT(*) FILTER (WHERE nm.symbol = 'seedling_gold') AS gold_count,
-          COUNT(*) FILTER (WHERE nm.leaf_colour = 'Silver' AND (nm.symbol IS NULL OR nm.symbol NOT LIKE 'seedling_%')) +
-          COUNT(*) FILTER (WHERE nm.symbol = 'seedling_silver') AS silver_count,
-          COUNT(*) FILTER (WHERE nm.leaf_colour = 'Purple' AND (nm.symbol IS NULL OR nm.symbol NOT LIKE 'seedling_%')) +
-          COUNT(*) FILTER (WHERE nm.symbol = 'seedling_purple') AS purple_count,
-          COUNT(*) FILTER (WHERE nm.leaf_colour = 'Dark green' AND (nm.symbol IS NULL OR nm.symbol NOT LIKE 'seedling_%')) +
-          COUNT(*) FILTER (WHERE nm.symbol = 'seedling_dark_green') AS dark_green_count,
-          COUNT(*) FILTER (WHERE nm.leaf_colour = 'Light green' AND (nm.symbol IS NULL OR nm.symbol NOT LIKE 'seedling_%')) +
-          COUNT(*) FILTER (WHERE nm.symbol = 'seedling_light_green') AS light_green_count,
+          -- Regular NFTs by leaf_colour (exclude cNFTs)
+          COUNT(*) FILTER (WHERE nm.leaf_colour = 'Gold' AND (nm.symbol IS NULL OR nm.symbol NOT LIKE 'seedling_%')) AS gold_count,
+          COUNT(*) FILTER (WHERE nm.leaf_colour = 'Silver' AND (nm.symbol IS NULL OR nm.symbol NOT LIKE 'seedling_%')) AS silver_count,
+          COUNT(*) FILTER (WHERE nm.leaf_colour = 'Purple' AND (nm.symbol IS NULL OR nm.symbol NOT LIKE 'seedling_%')) AS purple_count,
+          COUNT(*) FILTER (WHERE nm.leaf_colour = 'Dark green' AND (nm.symbol IS NULL OR nm.symbol NOT LIKE 'seedling_%')) AS dark_green_count,
+          COUNT(*) FILTER (WHERE nm.leaf_colour = 'Light green' AND (nm.symbol IS NULL OR nm.symbol NOT LIKE 'seedling_%')) AS light_green_count,
           COUNT(*) FILTER (WHERE nm.og420 = TRUE) AS og420_count,
-          COUNT(*) AS total_count,
+          COUNT(*) FILTER (WHERE nm.symbol IS NULL OR nm.symbol NOT LIKE 'seedling_%') AS total_count,
+          -- cNFTs by symbol
+          COUNT(*) FILTER (WHERE nm.symbol = 'seedling_gold') AS cnft_gold_count,
+          COUNT(*) FILTER (WHERE nm.symbol = 'seedling_silver') AS cnft_silver_count,
+          COUNT(*) FILTER (WHERE nm.symbol = 'seedling_purple') AS cnft_purple_count,
+          COUNT(*) FILTER (WHERE nm.symbol = 'seedling_dark_green') AS cnft_dark_green_count,
+          COUNT(*) FILTER (WHERE nm.symbol = 'seedling_light_green') AS cnft_light_green_count,
+          COUNT(*) FILTER (WHERE nm.symbol LIKE 'seedling_%') AS cnft_total_count,
           NOW() AS last_updated
         FROM nft_metadata nm
         WHERE EXISTS (
@@ -130,6 +150,12 @@ userWalletsRouter.post('/', async (req, res) => {
           light_green_count = EXCLUDED.light_green_count,
           og420_count = EXCLUDED.og420_count,
           total_count = EXCLUDED.total_count,
+          cnft_gold_count = EXCLUDED.cnft_gold_count,
+          cnft_silver_count = EXCLUDED.cnft_silver_count,
+          cnft_purple_count = EXCLUDED.cnft_purple_count,
+          cnft_dark_green_count = EXCLUDED.cnft_dark_green_count,
+          cnft_light_green_count = EXCLUDED.cnft_light_green_count,
+          cnft_total_count = EXCLUDED.cnft_total_count,
           last_updated = NOW()
       `,
       [discordId, discordName]
