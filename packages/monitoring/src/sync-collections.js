@@ -814,7 +814,6 @@ async function syncCollection(pool, collection) {
               symbol, 
               owner_wallet, 
               image_url, 
-              attributes, 
               rarity_rank,
               is_listed,
               marketplace,
@@ -824,14 +823,13 @@ async function syncCollection(pool, collection) {
               owner_name,
               lister_discord_name,
               og420
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
             [
               nft.id,
               nft.content.metadata.name,
               collection.name,
               nft.ownership.owner,
               nft.content.links.image,
-              JSON.stringify(nft.content.metadata.attributes),
               null,
               false,
               null,
