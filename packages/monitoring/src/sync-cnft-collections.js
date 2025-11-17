@@ -310,6 +310,72 @@ async function updateUserRoles(pool) {
       console.log(`   ✅ Updated ${discordIds.length} users with ${collection.name} HARVESTER eligibility`);
     }
     
+    // Update collection_counts to include cNFTs for all users with linked wallets
+    console.log(`\n📊 Updating collection_counts with cNFT data...`);
+    
+    // Get all users with linked wallets
+    const allUsersResult = await client.query(
+      `SELECT DISTINCT discord_id FROM user_wallets WHERE discord_id IS NOT NULL`
+    );
+    
+    let updatedCount = 0;
+    for (const userRow of allUsersResult.rows) {
+      const discordId = userRow.discord_id;
+      
+      // Get user's wallets
+      const userWallets = await client.query(
+        `SELECT wallet_address FROM user_wallets WHERE discord_id = $1`,
+        [discordId]
+      );
+      
+      if (userWallets.rows.length === 0) continue;
+      
+      const walletAddresses = userWallets.rows.map(r => r.wallet_address);
+      
+      // Recalculate collection_counts including cNFTs
+      await client.query(
+        `
+          INSERT INTO collection_counts (
+            discord_id, discord_name,
+            gold_count, silver_count, purple_count, dark_green_count, light_green_count,
+            og420_count, total_count, last_updated
+          )
+          SELECT
+            $1::varchar AS discord_id,
+            COALESCE((SELECT discord_name FROM collection_counts WHERE discord_id = $1), '') AS discord_name,
+            -- Regular NFTs by leaf_colour + cNFTs by symbol
+            COUNT(*) FILTER (WHERE nm.leaf_colour = 'Gold' AND (nm.symbol IS NULL OR nm.symbol NOT LIKE 'seedling_%')) +
+            COUNT(*) FILTER (WHERE nm.symbol = 'seedling_gold') AS gold_count,
+            COUNT(*) FILTER (WHERE nm.leaf_colour = 'Silver' AND (nm.symbol IS NULL OR nm.symbol NOT LIKE 'seedling_%')) +
+            COUNT(*) FILTER (WHERE nm.symbol = 'seedling_silver') AS silver_count,
+            COUNT(*) FILTER (WHERE nm.leaf_colour = 'Purple' AND (nm.symbol IS NULL OR nm.symbol NOT LIKE 'seedling_%')) +
+            COUNT(*) FILTER (WHERE nm.symbol = 'seedling_purple') AS purple_count,
+            COUNT(*) FILTER (WHERE nm.leaf_colour = 'Dark green' AND (nm.symbol IS NULL OR nm.symbol NOT LIKE 'seedling_%')) +
+            COUNT(*) FILTER (WHERE nm.symbol = 'seedling_dark_green') AS dark_green_count,
+            COUNT(*) FILTER (WHERE nm.leaf_colour = 'Light green' AND (nm.symbol IS NULL OR nm.symbol NOT LIKE 'seedling_%')) +
+            COUNT(*) FILTER (WHERE nm.symbol = 'seedling_light_green') AS light_green_count,
+            COUNT(*) FILTER (WHERE nm.og420 = TRUE) AS og420_count,
+            COUNT(*) AS total_count,
+            NOW() AS last_updated
+          FROM nft_metadata nm
+          WHERE nm.owner_wallet = ANY($2::text[])
+          ON CONFLICT (discord_id) DO UPDATE SET
+            gold_count = EXCLUDED.gold_count,
+            silver_count = EXCLUDED.silver_count,
+            purple_count = EXCLUDED.purple_count,
+            dark_green_count = EXCLUDED.dark_green_count,
+            light_green_count = EXCLUDED.light_green_count,
+            og420_count = EXCLUDED.og420_count,
+            total_count = EXCLUDED.total_count,
+            last_updated = NOW()
+        `,
+        [discordId, walletAddresses]
+      );
+      updatedCount++;
+    }
+    
+    console.log(`   ✅ Updated collection_counts for ${updatedCount} users (including cNFTs)`);
+    
     // Update daily_rewards to include cNFT rewards
     console.log(`\n💰 Updating daily_rewards with cNFT rewards...`);
     

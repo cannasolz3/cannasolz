@@ -77,7 +77,7 @@ authWalletRouter.post('/', async (req, res) => {
         [discordUser.discord_id, discordUser.discord_username, wallet_address]
       );
 
-      // Upsert collection_counts per-colour and totals for this user
+      // Upsert collection_counts per-colour and totals for this user (including cNFTs)
       await client.query(
         `
           INSERT INTO collection_counts (
@@ -88,16 +88,26 @@ authWalletRouter.post('/', async (req, res) => {
           SELECT
             $1 AS discord_id,
             $2 AS discord_name,
-            COUNT(*) FILTER (WHERE nm.leaf_colour = 'Gold')        AS gold_count,
-            COUNT(*) FILTER (WHERE nm.leaf_colour = 'Silver')      AS silver_count,
-            COUNT(*) FILTER (WHERE nm.leaf_colour = 'Purple')      AS purple_count,
-            COUNT(*) FILTER (WHERE nm.leaf_colour = 'Dark green')  AS dark_green_count,
-            COUNT(*) FILTER (WHERE nm.leaf_colour = 'Light green') AS light_green_count,
-            COUNT(*) FILTER (WHERE nm.og420 = TRUE)                AS og420_count,
+            -- Regular NFTs by leaf_colour + cNFTs by symbol
+            COUNT(*) FILTER (WHERE nm.leaf_colour = 'Gold' AND (nm.symbol IS NULL OR nm.symbol NOT LIKE 'seedling_%')) +
+            COUNT(*) FILTER (WHERE nm.symbol = 'seedling_gold') AS gold_count,
+            COUNT(*) FILTER (WHERE nm.leaf_colour = 'Silver' AND (nm.symbol IS NULL OR nm.symbol NOT LIKE 'seedling_%')) +
+            COUNT(*) FILTER (WHERE nm.symbol = 'seedling_silver') AS silver_count,
+            COUNT(*) FILTER (WHERE nm.leaf_colour = 'Purple' AND (nm.symbol IS NULL OR nm.symbol NOT LIKE 'seedling_%')) +
+            COUNT(*) FILTER (WHERE nm.symbol = 'seedling_purple') AS purple_count,
+            COUNT(*) FILTER (WHERE nm.leaf_colour = 'Dark green' AND (nm.symbol IS NULL OR nm.symbol NOT LIKE 'seedling_%')) +
+            COUNT(*) FILTER (WHERE nm.symbol = 'seedling_dark_green') AS dark_green_count,
+            COUNT(*) FILTER (WHERE nm.leaf_colour = 'Light green' AND (nm.symbol IS NULL OR nm.symbol NOT LIKE 'seedling_%')) +
+            COUNT(*) FILTER (WHERE nm.symbol = 'seedling_light_green') AS light_green_count,
+            COUNT(*) FILTER (WHERE nm.og420 = TRUE) AS og420_count,
             COUNT(*) AS total_count,
             NOW() AS last_updated
           FROM nft_metadata nm
-          WHERE nm.owner_discord_id = $1
+          WHERE EXISTS (
+            SELECT 1 FROM user_wallets uw 
+            WHERE uw.discord_id = $1 
+            AND uw.wallet_address = nm.owner_wallet
+          )
           ON CONFLICT (discord_id) DO UPDATE SET
             discord_name = EXCLUDED.discord_name,
             gold_count = EXCLUDED.gold_count,
