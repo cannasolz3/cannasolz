@@ -792,6 +792,20 @@ async function syncCollection(connection, pool, collection) {
             collection: collection.name
           });
         } else {
+          // Check current OG420 count to determine if this new NFT should be OG420
+          const og420CountResult = await client.query(
+            `SELECT COUNT(*) as count FROM nft_metadata WHERE symbol = $1 AND og420 = TRUE`,
+            [collection.name]
+          );
+          const currentOg420Count = parseInt(og420CountResult.rows[0]?.count || 0);
+          const isOg420 = currentOg420Count < 420;
+          
+          if (isOg420) {
+            console.log(`Marking new NFT ${nft.id} as OG420 (current count: ${currentOg420Count}/420)`);
+          } else {
+            console.log(`New NFT ${nft.id} will NOT be OG420 (already at 420 limit)`);
+          }
+          
           // New NFT - insert into database
           await client.query(
             `INSERT INTO nft_metadata (
@@ -808,8 +822,9 @@ async function syncCollection(connection, pool, collection) {
               last_sale_price,
               owner_discord_id,
               owner_name,
-              lister_discord_name
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
+              lister_discord_name,
+              og420
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
             [
               nft.id,
               nft.content.metadata.name,
@@ -824,7 +839,8 @@ async function syncCollection(connection, pool, collection) {
               null,
               null,
               null,
-              null
+              null,
+              isOg420
             ]
           );
         }
