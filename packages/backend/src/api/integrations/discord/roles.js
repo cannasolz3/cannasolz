@@ -332,13 +332,21 @@ async function syncUserRolesViaRestAPI(discordId, guildId, userRoles, roles) {
     
     for (const role of roles) {
       const shouldHaveRole = checkRoleEligibility(userRoles, role);
-      const hasRole = currentRoles.includes(role.discord_role_id);
-      console.log(`Role ${role.name}: Should have - ${shouldHaveRole}, Has role - ${hasRole}`);
+      // Ensure role ID is a string for comparison
+      const roleIdStr = String(role.discord_role_id);
+      const hasRole = currentRoles.some(r => String(r) === roleIdStr);
+      console.log(`Role ${role.name} (${roleIdStr}): Should have - ${shouldHaveRole}, Has role - ${hasRole}`, {
+        currentRolesSample: currentRoles.slice(0, 3),
+        roleIdStr,
+        roleIdType: typeof role.discord_role_id
+      });
       
       if (shouldHaveRole && !hasRole) {
-        rolesToAdd.push(role.discord_role_id);
+        rolesToAdd.push(roleIdStr);
+        console.log(`Adding role ${role.name} (${roleIdStr}) to rolesToAdd`);
       } else if (!shouldHaveRole && hasRole && managedRoleIds.includes(role.discord_role_id)) {
-        rolesToRemove.push(role.discord_role_id);
+        rolesToRemove.push(roleIdStr);
+        console.log(`Removing role ${role.name} (${roleIdStr}) from user`);
       }
     }
     
@@ -364,6 +372,10 @@ async function syncUserRolesViaRestAPI(discordId, guildId, userRoles, roles) {
     finalRoles = finalRoles.filter(roleId => !rolesToRemove.includes(roleId));
     
     // Update member roles
+    console.log(`Updating Discord member ${discordId} with ${finalRoles.length} total roles (adding ${rolesToAdd.length}, removing ${rolesToRemove.length})`);
+    console.log(`Roles being added:`, rolesToAdd);
+    console.log(`Final roles list (first 5):`, finalRoles.slice(0, 5));
+    
     const updateResponse = await fetch(`https://discord.com/api/v10/guilds/${guildId}/members/${discordId}`, {
       method: 'PATCH',
       headers: {
@@ -377,10 +389,22 @@ async function syncUserRolesViaRestAPI(discordId, guildId, userRoles, roles) {
     
     if (!updateResponse.ok) {
       const errorText = await updateResponse.text();
+      console.error(`Discord API error response:`, {
+        status: updateResponse.status,
+        statusText: updateResponse.statusText,
+        errorText,
+        rolesBeingAdded: rolesToAdd,
+        finalRolesCount: finalRoles.length
+      });
       throw new Error(`Failed to update roles: ${updateResponse.status} ${errorText}`);
     }
     
-    console.log(`Successfully synced roles via REST API for user ${discordId}`);
+    const updatedMember = await updateResponse.json().catch(() => null);
+    console.log(`Successfully synced roles via REST API for user ${discordId}`, {
+      rolesAdded: rolesToAdd.length,
+      rolesRemoved: rolesToRemove.length,
+      totalRoles: updatedMember?.roles?.length || finalRoles.length
+    });
     return true;
   } catch (error) {
     console.error('Error syncing roles via REST API:', error);
