@@ -35,7 +35,7 @@ export default async function handler(req, res) {
     try {
       const discordId = req.session.user.discord_id;
 
-      const [countsResult, walletsResult] = await Promise.all([
+      const [countsResult, walletsResult, cnftCountsResult] = await Promise.all([
         client.query(
           `
             SELECT 
@@ -58,13 +58,33 @@ export default async function handler(req, res) {
             WHERE discord_id = $1
           `,
           [discordId]
+        ),
+        client.query(
+          `
+            SELECT 
+              COUNT(*) FILTER (WHERE symbol = 'seedling_gold') as gold_count,
+              COUNT(*) FILTER (WHERE symbol = 'seedling_silver') as silver_count,
+              COUNT(*) FILTER (WHERE symbol = 'seedling_purple') as purple_count,
+              COUNT(*) FILTER (WHERE symbol = 'seedling_dark_green') as dark_green_count,
+              COUNT(*) FILTER (WHERE symbol = 'seedling_light_green') as light_green_count,
+              COUNT(*) as total_count
+            FROM nft_metadata nm
+            WHERE nm.symbol LIKE 'seedling_%'
+            AND EXISTS (
+              SELECT 1 FROM user_wallets uw 
+              WHERE uw.discord_id = $1 
+              AND uw.wallet_address = nm.owner_wallet
+            )
+          `,
+          [discordId]
         )
       ]);
 
       const counts = countsResult.rows[0] || {};
+      const cnftCounts = cnftCountsResult.rows[0] || {};
       const walletAddresses = walletsResult.rows.map(row => row.wallet_address).filter(Boolean);
 
-      // Daily yield rates per NFT
+      // Daily yield rates per NFT (regular NFTs)
       const yieldRates = {
         og420: 50,
         gold: 30,
@@ -74,7 +94,16 @@ export default async function handler(req, res) {
         light_green: 10
       };
 
-      // Calculate daily yield for each color
+      // Daily yield rates per cNFT (seedlings)
+      const cnftYieldRates = {
+        gold: 5,
+        silver: 4,
+        purple: 3,
+        dark_green: 2,
+        light_green: 1
+      };
+
+      // Calculate daily yield for each color (regular NFTs)
       const dailyYields = {
         og420: (counts.og420_count || 0) * yieldRates.og420,
         gold: (counts.gold_count || 0) * yieldRates.gold,
@@ -84,21 +113,46 @@ export default async function handler(req, res) {
         light_green: (counts.light_green_count || 0) * yieldRates.light_green
       };
 
-      // Total daily yield
-      const totalDailyYield = Object.values(dailyYields).reduce((sum, dailyYield) => sum + dailyYield, 0);
+      // Calculate daily yield for each color (cNFTs)
+      const cnftDailyYields = {
+        gold: (Number(cnftCounts.gold_count) || 0) * cnftYieldRates.gold,
+        silver: (Number(cnftCounts.silver_count) || 0) * cnftYieldRates.silver,
+        purple: (Number(cnftCounts.purple_count) || 0) * cnftYieldRates.purple,
+        dark_green: (Number(cnftCounts.dark_green_count) || 0) * cnftYieldRates.dark_green,
+        light_green: (Number(cnftCounts.light_green_count) || 0) * cnftYieldRates.light_green
+      };
+
+      // Total daily yield (NFTs + cNFTs)
+      const totalDailyYield = Object.values(dailyYields).reduce((sum, dailyYield) => sum + dailyYield, 0) +
+                              Object.values(cnftDailyYields).reduce((sum, dailyYield) => sum + dailyYield, 0);
 
       let nfts = [];
+      let cnfts = [];
       if (walletAddresses.length > 0) {
-        const nftResult = await client.query(
-          `
-            SELECT mint_address, name, image_url, leaf_colour, og420
-            FROM nft_metadata
-            WHERE owner_wallet = ANY($1::text[])
-            ORDER BY name NULLS LAST
-          `,
-          [walletAddresses]
-        );
+        const [nftResult, cnftResult] = await Promise.all([
+          client.query(
+            `
+              SELECT mint_address, name, image_url, leaf_colour, og420
+              FROM nft_metadata
+              WHERE owner_wallet = ANY($1::text[])
+              AND (symbol IS NULL OR symbol NOT LIKE 'seedling_%')
+              ORDER BY name NULLS LAST
+            `,
+            [walletAddresses]
+          ),
+          client.query(
+            `
+              SELECT mint_address, name, image_url, symbol
+              FROM nft_metadata
+              WHERE owner_wallet = ANY($1::text[])
+              AND symbol LIKE 'seedling_%'
+              ORDER BY name NULLS LAST
+            `,
+            [walletAddresses]
+          )
+        ]);
         nfts = nftResult.rows;
+        cnfts = cnftResult.rows;
       }
 
       return res.json({
@@ -116,6 +170,14 @@ export default async function handler(req, res) {
           light_green: counts.light_green_count || 0,
           total: counts.total_count || 0
         },
+        cnft_counts: {
+          gold: Number(cnftCounts.gold_count) || 0,
+          silver: Number(cnftCounts.silver_count) || 0,
+          purple: Number(cnftCounts.purple_count) || 0,
+          dark_green: Number(cnftCounts.dark_green_count) || 0,
+          light_green: Number(cnftCounts.light_green_count) || 0,
+          total: Number(cnftCounts.total_count) || 0
+        },
         daily_yields: {
           og420: dailyYields.og420,
           gold: dailyYields.gold,
@@ -125,7 +187,16 @@ export default async function handler(req, res) {
           light_green: dailyYields.light_green,
           total: totalDailyYield
         },
-        nfts
+        cnft_daily_yields: {
+          gold: cnftDailyYields.gold,
+          silver: cnftDailyYields.silver,
+          purple: cnftDailyYields.purple,
+          dark_green: cnftDailyYields.dark_green,
+          light_green: cnftDailyYields.light_green,
+          total: Object.values(cnftDailyYields).reduce((sum, y) => sum + y, 0)
+        },
+        nfts,
+        cnfts
       });
     } finally {
       client.release();

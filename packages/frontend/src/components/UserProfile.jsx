@@ -25,6 +25,7 @@ const UserProfile = () => {
   const [claimAmount, setClaimAmount] = useState('');
   const [timeUntilUpdate, setTimeUntilUpdate] = useState(0);
   const [isClaimLoading, setIsClaimLoading] = useState(false);
+  const [showCnfts, setShowCnfts] = useState(false); // Toggle between NFTs and cNFTs
 
   // Format time remaining
   const formatTimeRemaining = (milliseconds) => {
@@ -335,12 +336,31 @@ const UserProfile = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* NFT Holdings */}
           <div className="tile bg-gradient-to-br from-gray-900/90 to-gray-800/90 rounded-lg p-6 shadow-lg backdrop-blur-sm border border-fuchsia-500/20">
-            <h3 className="text-xl font-semibold text-white mb-4 flex items-center gap-2">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7zm4 1.5l3 3 2-2 4 4 2-2.5" />
-              </svg>
-              My NFTs
-            </h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-semibold text-white flex items-center gap-2">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7zm4 1.5l3 3 2-2 4 4 2-2.5" />
+                </svg>
+                My {showCnfts ? 'cNFTs' : 'NFTs'}
+              </h3>
+              {/* Toggle Switch */}
+              <div className="flex items-center gap-2">
+                <span className={`text-sm ${!showCnfts ? 'text-white' : 'text-gray-500'}`}>NFTs</span>
+                <button
+                  onClick={() => setShowCnfts(!showCnfts)}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    showCnfts ? 'bg-purple-600' : 'bg-gray-600'
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      showCnfts ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
+                <span className={`text-sm ${showCnfts ? 'text-white' : 'text-gray-500'}`}>cNFTs</span>
+              </div>
+            </div>
             <div className="overflow-x-auto">
               <table className="w-full text-left">
                 <thead>
@@ -355,41 +375,77 @@ const UserProfile = () => {
                 </thead>
                 <tbody>
                   {(() => {
-                    // Use API counts if available, otherwise fall back to counting NFTs
-                    const counts = userData.counts || {};
-                    const dailyYields = userData.dailyYields || {};
-                    
-                    // Define row order with OG420 first
-                    const rows = [
-                      { key: 'og420', label: 'OG420', count: counts.og420 || 0, yield: dailyYields.og420 || 0 },
-                      { key: 'gold', label: 'Gold', count: counts.gold || 0, yield: dailyYields.gold || 0 },
-                      { key: 'silver', label: 'Silver', count: counts.silver || 0, yield: dailyYields.silver || 0 },
-                      { key: 'purple', label: 'Purple', count: counts.purple || 0, yield: dailyYields.purple || 0 },
-                      { key: 'dark_green', label: 'Dark green', count: counts.dark_green || 0, yield: dailyYields.dark_green || 0 },
-                      { key: 'light_green', label: 'Light green', count: counts.light_green || 0, yield: dailyYields.light_green || 0 }
-                    ];
-                    
-                    const totalCount = counts.total || rows.reduce((sum, row) => sum + row.count, 0);
-                    const totalYield = dailyYields.total || userData.primaryCollection.dailyYield || 0;
-                    
-                    return (
-                      <>
-                        {rows.map((row) => (
-                          <tr key={row.key}>
-                            <td className="py-3">{row.label}</td>
-                            <td className="py-3 text-center">{row.count}</td>
-                            <td className="py-3 text-center">
-                              {row.yield > 0 ? Number(row.yield).toFixed(2) : '—'}
-                            </td>
+                    if (showCnfts) {
+                      // Display cNFTs
+                      const cnftCounts = userData.cnftCounts || {};
+                      const cnftDailyYields = userData.cnftDailyYields || {};
+                      
+                      const rows = [
+                        { key: 'gold', label: 'Gold', count: cnftCounts.gold || 0, yield: cnftDailyYields.gold || 0 },
+                        { key: 'silver', label: 'Silver', count: cnftCounts.silver || 0, yield: cnftDailyYields.silver || 0 },
+                        { key: 'purple', label: 'Purple', count: cnftCounts.purple || 0, yield: cnftDailyYields.purple || 0 },
+                        { key: 'dark_green', label: 'Dark green', count: cnftCounts.dark_green || 0, yield: cnftDailyYields.dark_green || 0 },
+                        { key: 'light_green', label: 'Light green', count: cnftCounts.light_green || 0, yield: cnftDailyYields.light_green || 0 }
+                      ];
+                      
+                      const totalCount = cnftCounts.total || rows.reduce((sum, row) => sum + row.count, 0);
+                      const totalYield = cnftDailyYields.total || rows.reduce((sum, row) => sum + row.yield, 0);
+                      
+                      return (
+                        <>
+                          {rows.map((row) => (
+                            <tr key={row.key}>
+                              <td className="py-3">{row.label}</td>
+                              <td className="py-3 text-center">{row.count}</td>
+                              <td className="py-3 text-center">
+                                {row.yield > 0 ? Number(row.yield).toFixed(2) : '—'}
+                              </td>
+                            </tr>
+                          ))}
+                          <tr className="border-t border-fuchsia-500/30">
+                            <td className="py-3 font-semibold">Total</td>
+                            <td className="py-3 text-center font-semibold">{totalCount}</td>
+                            <td className="py-3 text-center font-semibold">{Number(totalYield).toFixed(2)}</td>
                           </tr>
-                        ))}
-                        <tr className="border-t border-fuchsia-500/30">
-                          <td className="py-3 font-semibold">Total</td>
-                          <td className="py-3 text-center font-semibold">{totalCount}</td>
-                          <td className="py-3 text-center font-semibold">{Number(totalYield).toFixed(2)}</td>
-                        </tr>
-                      </>
-                    );
+                        </>
+                      );
+                    } else {
+                      // Display regular NFTs
+                      const counts = userData.counts || {};
+                      const dailyYields = userData.dailyYields || {};
+                      
+                      // Define row order with OG420 first
+                      const rows = [
+                        { key: 'og420', label: 'OG420', count: counts.og420 || 0, yield: dailyYields.og420 || 0 },
+                        { key: 'gold', label: 'Gold', count: counts.gold || 0, yield: dailyYields.gold || 0 },
+                        { key: 'silver', label: 'Silver', count: counts.silver || 0, yield: dailyYields.silver || 0 },
+                        { key: 'purple', label: 'Purple', count: counts.purple || 0, yield: dailyYields.purple || 0 },
+                        { key: 'dark_green', label: 'Dark green', count: counts.dark_green || 0, yield: dailyYields.dark_green || 0 },
+                        { key: 'light_green', label: 'Light green', count: counts.light_green || 0, yield: dailyYields.light_green || 0 }
+                      ];
+                      
+                      const totalCount = counts.total || rows.reduce((sum, row) => sum + row.count, 0);
+                      const totalYield = dailyYields.total || userData.primaryCollection.dailyYield || 0;
+                      
+                      return (
+                        <>
+                          {rows.map((row) => (
+                            <tr key={row.key}>
+                              <td className="py-3">{row.label}</td>
+                              <td className="py-3 text-center">{row.count}</td>
+                              <td className="py-3 text-center">
+                                {row.yield > 0 ? Number(row.yield).toFixed(2) : '—'}
+                              </td>
+                            </tr>
+                          ))}
+                          <tr className="border-t border-fuchsia-500/30">
+                            <td className="py-3 font-semibold">Total</td>
+                            <td className="py-3 text-center font-semibold">{totalCount}</td>
+                            <td className="py-3 text-center font-semibold">{Number(totalYield).toFixed(2)}</td>
+                          </tr>
+                        </>
+                      );
+                    }
                   })()}
                 </tbody>
               </table>

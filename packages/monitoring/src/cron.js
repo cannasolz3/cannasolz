@@ -13,6 +13,7 @@ dotenv.config({ path: join(__dirname, '.env') });
 const JOB_SCRIPTS = {
   syncCollections: 'sync-collections.js',
   syncHolders: 'sync-holders.js',
+  syncCnftCollections: 'sync-cnft-collections.js',
   syncRoles: 'sync-roles.js',
   processDailyRewards: 'process-daily-rewards.js'
 };

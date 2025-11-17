@@ -9,9 +9,13 @@
       "enabled": true,
       "schedule": "15 * * * *"
     },
+    "syncCnftCollections": {
+      "enabled": true,
+      "schedule": "*/15 * * * *"
+    },
     "syncRoles": {
       "enabled": true,
-      "schedule": "*/30 * * * *"
+      "schedule": "1,16,31,46 * * * *"
     },
     "processDailyRewards": {
       "enabled": true,

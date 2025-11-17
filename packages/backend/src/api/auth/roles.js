@@ -69,6 +69,16 @@ export default async function handler(req, res) {
               return !!userRoles.clb_holder;
             case 'ddbot':
               return !!userRoles.ddbot_holder;
+            case 'seedling_gold':
+              return !!userRoles.harvester_gold;
+            case 'seedling_silver':
+              return !!userRoles.harvester_silver;
+            case 'seedling_purple':
+              return !!userRoles.harvester_purple;
+            case 'seedling_dark_green':
+              return !!userRoles.harvester_dark_green;
+            case 'seedling_light_green':
+              return !!userRoles.harvester_light_green;
             default:
               return false;
           }
