@@ -145,8 +145,11 @@ const UserProfile = () => {
               dailyYield: holdingsData.collection?.daily_yield || 0
             },
             nfts: holdingsData.nfts || [],
+            cnfts: holdingsData.cnfts || [],
             counts: holdingsData.counts || {},
-            dailyYields: holdingsData.daily_yields || {}
+            dailyYields: holdingsData.daily_yields || {},
+            cnftCounts: holdingsData.cnft_counts || {},
+            cnftDailyYields: holdingsData.cnft_daily_yields || {}
           }));
         } else {
           console.error('Failed to fetch holdings:', await holdingsResponse.text());

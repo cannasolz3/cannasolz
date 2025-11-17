@@ -137,14 +137,14 @@ export default async function handler(req, res) {
             [walletAddresses]
           ),
           client.query(
-            `
+          `
               SELECT mint_address, name, image_url, symbol
-              FROM nft_metadata
-              WHERE owner_wallet = ANY($1::text[])
+            FROM nft_metadata
+            WHERE owner_wallet = ANY($1::text[])
               AND symbol LIKE 'seedling_%'
-              ORDER BY name NULLS LAST
-            `,
-            [walletAddresses]
+            ORDER BY name NULLS LAST
+          `,
+          [walletAddresses]
           )
         ]);
         nfts = nftResult.rows;
@@ -167,12 +167,12 @@ export default async function handler(req, res) {
           total: counts.total_count || 0
         },
         cnft_counts: {
-          gold: Number(cnftCounts.gold_count) || 0,
-          silver: Number(cnftCounts.silver_count) || 0,
-          purple: Number(cnftCounts.purple_count) || 0,
-          dark_green: Number(cnftCounts.dark_green_count) || 0,
-          light_green: Number(cnftCounts.light_green_count) || 0,
-          total: Number(cnftCounts.total_count) || 0
+          gold: Number(cnftCounts.gold) || 0,
+          silver: Number(cnftCounts.silver) || 0,
+          purple: Number(cnftCounts.purple) || 0,
+          dark_green: Number(cnftCounts.dark_green) || 0,
+          light_green: Number(cnftCounts.light_green) || 0,
+          total: Number(cnftCounts.total) || 0
         },
         daily_yields: {
           og420: dailyYields.og420,
