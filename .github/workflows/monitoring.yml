@@ -58,5 +58,5 @@ jobs:
           POSTGRES_URL: ${{ secrets.POSTGRES_URL }}
           DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
           DISCORD_GUILD_ID: ${{ secrets.DISCORD_GUILD_ID }}
-        run: npm run sync-roles
+        run: node src/sync-roles.js
 

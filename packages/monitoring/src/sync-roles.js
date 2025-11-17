@@ -1,4 +1,4 @@
-import 'dotenv/config';
+import dotenv from 'dotenv';
 import pkg from 'pg';
 const { Pool } = pkg;
 import fs from 'fs';
@@ -9,12 +9,21 @@ import { syncUserRoles } from './discord/roles.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// Load .env file if it exists (for local development)
+// Environment variables from GitHub Actions will take precedence
+try {
+  dotenv.config({ path: path.join(__dirname, '.env') });
+} catch (error) {
+  // .env file doesn't exist, which is fine for GitHub Actions
+}
+
 // Validate required environment variables
 const requiredEnvVars = ['POSTGRES_URL', 'DISCORD_BOT_TOKEN', 'DISCORD_GUILD_ID'];
 const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
 
 if (missingEnvVars.length > 0) {
   console.error('Missing required environment variables:', missingEnvVars.join(', '));
+  console.error('Available env vars:', Object.keys(process.env).filter(k => k.includes('DISCORD') || k.includes('POSTGRES')).join(', '));
   process.exit(1);
 }
 
