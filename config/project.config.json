@@ -18,7 +18,7 @@
   },
   "collections": [
     {
-      "symbol": "CANNAZ",
+      "symbol": "CNSZ",
       "friendlyName": "CannaSolz Genesis",
       "mintAddresses": [],
       "holderRoleId": "000000000000000004",
@@ -39,6 +39,6 @@
     "appUrl": "http://localhost:5173"
   },
   "collectionCountColumns": {
-    "CANNAZ": "collection_count_column"
+    "CNSZ": "collection_count_column"
   }
 }
