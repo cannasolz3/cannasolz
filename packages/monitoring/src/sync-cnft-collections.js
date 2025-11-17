@@ -147,6 +147,20 @@ async function syncCollection(pool, collection) {
       const imageUrl = nft.content?.links?.image || nft.content?.files?.[0]?.cdn_uri || null;
       const existingOwner = existingMap.get(nft.id);
       
+      // Get Discord ID and name for this wallet if linked
+      let ownerDiscordId = null;
+      let ownerName = null;
+      if (owner) {
+        const walletOwner = await client.query(
+          `SELECT discord_id, discord_name FROM user_wallets WHERE wallet_address = $1 LIMIT 1`,
+          [owner]
+        );
+        if (walletOwner.rows.length > 0) {
+          ownerDiscordId = walletOwner.rows[0].discord_id;
+          ownerName = walletOwner.rows[0].discord_name;
+        }
+      }
+      
       if (!existingOwner) {
         // New cNFT - insert
         await client.query(
@@ -155,20 +169,26 @@ async function syncCollection(pool, collection) {
             name,
             symbol,
             owner_wallet,
+            owner_discord_id,
+            owner_name,
             image_url,
             is_listed,
             rarity_rank
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
           ON CONFLICT (mint_address) DO UPDATE SET
             name = EXCLUDED.name,
             symbol = EXCLUDED.symbol,
             owner_wallet = EXCLUDED.owner_wallet,
+            owner_discord_id = COALESCE(EXCLUDED.owner_discord_id, nft_metadata.owner_discord_id),
+            owner_name = COALESCE(EXCLUDED.owner_name, nft_metadata.owner_name),
             image_url = COALESCE(EXCLUDED.image_url, nft_metadata.image_url)`,
           [
             nft.id,
             name,
             collection.symbol,
             owner || null,
+            ownerDiscordId,
+            ownerName,
             imageUrl,
             false,
             null
@@ -180,11 +200,28 @@ async function syncCollection(pool, collection) {
         await client.query(
           `UPDATE nft_metadata SET
             owner_wallet = $1,
-            image_url = COALESCE($2, image_url)
-          WHERE mint_address = $3`,
-          [owner || null, imageUrl, nft.id]
+            owner_discord_id = $2,
+            owner_name = $3,
+            image_url = COALESCE($4, image_url)
+          WHERE mint_address = $5`,
+          [owner || null, ownerDiscordId, ownerName, imageUrl, nft.id]
         );
         updated++;
+      } else if (owner && !ownerDiscordId) {
+        // Same owner but check if we can now link Discord (backfill case)
+        const walletOwner = await client.query(
+          `SELECT discord_id, discord_name FROM user_wallets WHERE wallet_address = $1 LIMIT 1`,
+          [owner]
+        );
+        if (walletOwner.rows.length > 0) {
+          await client.query(
+            `UPDATE nft_metadata SET
+              owner_discord_id = $1,
+              owner_name = $2
+            WHERE mint_address = $3 AND (owner_discord_id IS NULL OR owner_discord_id = '')`,
+            [walletOwner.rows[0].discord_id, walletOwner.rows[0].discord_name, nft.id]
+          );
+        }
       }
     }
     
@@ -375,6 +412,22 @@ async function updateUserRoles(pool) {
     }
     
     console.log(`   ✅ Updated collection_counts for ${updatedCount} users (including cNFTs)`);
+    
+    // Backfill owner_discord_id and owner_name for cNFTs
+    console.log(`\n🔗 Backfilling owner_discord_id and owner_name for cNFTs...`);
+    const backfillResult = await client.query(
+      `
+        UPDATE nft_metadata nm
+        SET 
+          owner_discord_id = uw.discord_id,
+          owner_name = uw.discord_name
+        FROM user_wallets uw
+        WHERE nm.symbol LIKE 'seedling_%'
+        AND nm.owner_wallet = uw.wallet_address
+        AND (nm.owner_discord_id IS NULL OR nm.owner_discord_id = '')
+      `
+    );
+    console.log(`   ✅ Backfilled ${backfillResult.rowCount} cNFTs with owner information`);
     
     // Update daily_rewards to include cNFT rewards
     console.log(`\n💰 Updating daily_rewards with cNFT rewards...`);
