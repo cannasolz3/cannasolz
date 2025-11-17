@@ -777,12 +777,22 @@ async function syncCollection(pool, collection) {
     }).length}`);
     
     // Create maps for quick lookup
+    // Also fetch NFTs that might have NULL or different symbol to avoid duplicates
+    const { rows: allDbNFTs } = await client.query(
+      `SELECT mint_address, name, symbol, owner_wallet, original_lister, is_listed, marketplace, list_price, last_sale_price, rarity_rank, image_url, owner_discord_id, owner_name, lister_discord_name
+       FROM nft_metadata 
+       WHERE mint_address = ANY($1::text[])`,
+      [collectionNFTs.map(nft => nft.id)]
+    );
+    
     const dbNFTMap = new Map(dbNFTs.map(nft => [nft.mint_address, nft]));
+    const allDbNFTMap = new Map(allDbNFTs.map(nft => [nft.mint_address, nft]));
     const collectionNFTMap = new Map(collectionNFTs.map(nft => [nft.id, nft]));
     
     // Process each NFT in the collection
     for (const nft of collectionNFTs) {
-      const dbNFT = dbNFTMap.get(nft.id);
+      // Check both the symbol-filtered results and all NFTs by mint address
+      const dbNFT = dbNFTMap.get(nft.id) || allDbNFTMap.get(nft.id);
       
       if (!dbNFT) {
         summary.newNFTs++;
