@@ -8,6 +8,7 @@ import { Toaster } from 'react-hot-toast';
 import { ChevronDownIcon } from '@heroicons/react/24/outline';
 import HolderVerification from './components/HolderVerification.jsx';
 import UserProfile from './components/UserProfile.jsx';
+import SocialLinks from './components/SocialLinks.jsx';
 import { UserProvider, useUser } from './contexts/UserContext.jsx';
 import { SOLANA_RPC_URL } from './config.js';
 import { projectName, projectDescription, projectConfig } from './config/projectConfig.js';
@@ -92,6 +93,7 @@ function Home() {
               <UserMenu />
             )}
           </div>
+          <SocialLinks />
         </div>
       </header>
       <main className="app-grid single">
