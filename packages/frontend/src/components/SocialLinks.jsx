@@ -25,7 +25,6 @@ const SocialLinks = () => {
         aria-label="Join CannaSolz Discord"
       >
         <DiscordIcon className="social-icon" />
-        <span>Discord</span>
       </a>
       <a
         href="https://x.com/CannaSolz"
@@ -35,7 +34,6 @@ const SocialLinks = () => {
         aria-label="Follow CannaSolz on X"
       >
         <XIcon className="social-icon" />
-        <span>X</span>
       </a>
       <a
         href="https://launchmynft.io/sol/540"
