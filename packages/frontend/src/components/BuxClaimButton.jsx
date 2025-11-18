@@ -130,26 +130,50 @@ const BuxClaimButton = ({
 
   // If wallet gets connected after we opened the modal, proceed with claim
   useEffect(() => {
+    console.log('Wallet connection state changed:', {
+      connected,
+      hasPublicKey: !!publicKey,
+      hasSignTransaction: !!signTransaction,
+      pendingClaim: pendingClaimRef.current,
+      amount,
+      walletReady: wallet.ready,
+      adapterName: wallet.adapter?.name
+    });
+
     if (connected && publicKey && signTransaction && pendingClaimRef.current && amount > 0) {
+      console.log('All conditions met, setting up claim timer...');
       // Wait a moment for wallet to be fully ready
       const timer = setTimeout(() => {
+        console.log('Timer fired, proceeding with claim...');
         pendingClaimRef.current = false;
-        console.log('Wallet connected, proceeding with claim...');
         processClaim();
-      }, 500);
+      }, 1000); // Increased delay to 1 second
       
-      return () => clearTimeout(timer);
+      return () => {
+        console.log('Cleaning up claim timer');
+        clearTimeout(timer);
+      };
     }
-  }, [connected, publicKey, signTransaction, amount, processClaim]);
+  }, [connected, publicKey, signTransaction, amount, processClaim, wallet]);
 
   const handleClaim = async () => {
+    console.log('Claim button clicked:', {
+      connected,
+      hasPublicKey: !!publicKey,
+      hasSignTransaction: !!signTransaction,
+      amount,
+      unclaimedAmount
+    });
+
     // If wallet is not connected, prompt user to connect
     if (!connected || !publicKey || !signTransaction) {
+      console.log('Wallet not connected, opening wallet modal and setting pending claim flag');
       pendingClaimRef.current = true;
       setVisible(true);
       return;
     }
 
+    console.log('Wallet already connected, proceeding directly with claim');
     processClaim();
   };
 
