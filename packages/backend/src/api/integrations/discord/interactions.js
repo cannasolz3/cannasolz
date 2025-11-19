@@ -118,6 +118,10 @@ interactionsRouter.post('/', async (req, res) => {
       console.log('Received PING, responding with PONG');
       // Discord requires EXACT response: {"type": 1} 
       // No extra whitespace, no formatting - exact string
+      // Remove all CORS headers for Discord verification - they might interfere
+      res.removeHeader('Access-Control-Allow-Origin');
+      res.removeHeader('Access-Control-Allow-Credentials');
+      res.removeHeader('Vary');
       res.setHeader('Content-Type', 'application/json');
       res.status(200).end('{"type":1}');
       return;
