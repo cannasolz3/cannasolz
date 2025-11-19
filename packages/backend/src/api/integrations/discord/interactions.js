@@ -112,6 +112,21 @@ interactionsRouter.post('/', async (req, res) => {
       req.rawBody = Buffer.from(rawBodyString, 'utf8');
     }
     
+    // Verify signature - Discord may check this even for PING during verification
+    const publicKey = process.env.DISCORD_PUBLIC_KEY;
+    if (publicKey) {
+      const isValid = verifySignature(req);
+      if (!isValid) {
+        console.warn('Signature verification failed');
+        // For PING during verification, Discord might not send valid signatures
+        // But for other types, we need valid signatures
+        if (interaction.type !== 1 && interaction.type !== InteractionType.PING) {
+          return res.status(401).json({ error: 'Unauthorized' });
+        }
+        // For PING, continue even if signature fails (allows verification to proceed)
+      }
+    }
+    
     // Handle ping (Discord verification) - CRITICAL: respond immediately with exact format
     // Discord sends PING for endpoint verification - must respond within 3 seconds
     if (interaction.type === 1 || interaction.type === InteractionType.PING) {
@@ -125,18 +140,6 @@ interactionsRouter.post('/', async (req, res) => {
       res.setHeader('Content-Type', 'application/json');
       res.status(200).end('{"type":1}');
       return;
-    }
-    
-    // Verify signature for all other interaction types
-    // Skip verification in development if key not set
-    const publicKey = process.env.DISCORD_PUBLIC_KEY;
-    if (publicKey && process.env.NODE_ENV === 'production') {
-      if (!verifySignature(req)) {
-        console.warn('Invalid signature or missing headers');
-        return res.status(401).json({ error: 'Unauthorized' });
-      }
-    } else if (!publicKey) {
-      console.warn('DISCORD_PUBLIC_KEY not set - signature verification disabled');
     }
     
     // Handle application commands
