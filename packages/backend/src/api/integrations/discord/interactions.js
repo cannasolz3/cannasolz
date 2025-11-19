@@ -100,10 +100,11 @@ interactionsRouter.post('/', async (req, res) => {
       if (!req.rawBody && rawBodyString) {
         req.rawBody = Buffer.from(rawBodyString, 'utf8');
       }
+      // Discord requires exact response format: {"type": 1}
       res.setHeader('Content-Type', 'application/json');
-      return res.status(200).json({
-        type: InteractionResponseType.PONG
-      });
+      res.status(200);
+      res.send(JSON.stringify({ type: 1 }));
+      return;
     }
     
     // Verify signature for all other interaction types
