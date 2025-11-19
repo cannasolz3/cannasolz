@@ -32,7 +32,15 @@ app.use(cors({
   origin: FRONTEND_ORIGIN,
   credentials: true
 }));
-app.use(expressPkg.json({ limit: '5mb' }));
+
+// Discord interactions endpoint needs raw body for signature verification
+// Apply JSON parser to all routes except Discord interactions
+app.use((req, res, next) => {
+  if (req.path.startsWith('/api/discord/interactions')) {
+    return next(); // Skip JSON parsing for interactions
+  }
+  expressPkg.json({ limit: '5mb' })(req, res, next);
+});
 app.use(expressPkg.urlencoded({ extended: true }));
 app.use(session({
   secret: process.env.SESSION_SECRET || 'change-me',
@@ -68,6 +76,10 @@ app.post('/api/rewards/process-daily', wrapHandler(processDailyRewardsHandler));
 // Discord role sync endpoint
 const discordSyncHandler = (await import('./api/integrations/discord/sync.js')).default;
 app.post('/api/discord/sync', wrapHandler(discordSyncHandler));
+
+// Discord interactions endpoint (for slash commands)
+const discordInteractionsRouter = (await import('./api/integrations/discord/interactions.js')).default;
+app.use('/api/discord/interactions', discordInteractionsRouter);
 
 app.use((err, req, res, next) => {
   console.error('[Server] Unhandled error', err);
