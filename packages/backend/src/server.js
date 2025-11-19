@@ -34,13 +34,8 @@ app.use(cors({
 }));
 
 // Discord interactions endpoint needs raw body for signature verification
-// Apply JSON parser to all routes except Discord interactions
-app.use((req, res, next) => {
-  if (req.path.startsWith('/api/discord/interactions')) {
-    return next(); // Skip JSON parsing for interactions
-  }
-  expressPkg.json({ limit: '5mb' })(req, res, next);
-});
+// We'll handle it in the interactions router itself
+app.use(expressPkg.json({ limit: '5mb' }));
 app.use(expressPkg.urlencoded({ extended: true }));
 app.use(session({
   secret: process.env.SESSION_SECRET || 'change-me',

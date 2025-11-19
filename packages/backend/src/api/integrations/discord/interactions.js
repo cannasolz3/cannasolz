@@ -23,17 +23,15 @@ const InteractionResponseType = {
 
 const interactionsRouter = expressPkg.Router();
 
-// Middleware to capture raw body for signature verification
-// Must be before JSON parser
+// Middleware to capture raw body BEFORE any parsing
+// This must be the first middleware to capture the raw request body
 interactionsRouter.use(expressPkg.raw({ 
   type: 'application/json',
+  limit: '1mb',
   verify: (req, res, buf) => {
     req.rawBody = buf;
   }
 }));
-
-// Parse JSON after capturing raw body
-interactionsRouter.use(expressPkg.json());
 
 // Verify Discord request signature
 function verifySignature(req) {
@@ -73,13 +71,24 @@ function verifySignature(req) {
 // Handle Discord interactions
 interactionsRouter.post('/', async (req, res) => {
   try {
-    // Parse interaction from raw body (not parsed by global JSON middleware)
+    // Get raw body - handle both Buffer and string
+    let rawBodyString = '';
+    if (req.rawBody) {
+      rawBodyString = Buffer.isBuffer(req.rawBody) ? req.rawBody.toString('utf8') : String(req.rawBody);
+    } else if (req.body && typeof req.body === 'object' && Object.keys(req.body).length > 0) {
+      // Fallback: if body was already parsed, stringify it back
+      rawBodyString = JSON.stringify(req.body);
+    } else {
+      // Last resort: try to read from request stream
+      rawBodyString = '{}';
+    }
+    
+    // Parse interaction
     let interaction;
     try {
-      const rawBodyString = req.rawBody?.toString() || '{}';
       interaction = JSON.parse(rawBodyString);
     } catch (parseError) {
-      console.error('Error parsing interaction body:', parseError);
+      console.error('Error parsing interaction body:', parseError, 'Raw body:', rawBodyString.substring(0, 100));
       return res.status(400).json({ error: 'Invalid JSON' });
     }
     
@@ -87,6 +96,10 @@ interactionsRouter.post('/', async (req, res) => {
     // Discord sends PING without signature headers for endpoint verification
     if (interaction.type === InteractionType.PING) {
       console.log('Received PING, responding with PONG');
+      // Ensure we have rawBody for potential signature verification later
+      if (!req.rawBody && rawBodyString) {
+        req.rawBody = Buffer.from(rawBodyString, 'utf8');
+      }
       res.setHeader('Content-Type', 'application/json');
       return res.status(200).json({
         type: InteractionResponseType.PONG
