@@ -73,16 +73,8 @@ function verifySignature(req) {
 }
 
 // Handle Discord interactions
-interactionsRouter.post('/', async (req, res) => {
-  // CRITICAL: Ensure response is always sent, even on error
-  let responseSent = false;
-  const sendResponse = (status, data) => {
-    if (!responseSent) {
-      responseSent = true;
-      res.status(status).json(data);
-    }
-  };
-
+interactionsRouter.post('/', (req, res) => {
+  // Make handler synchronous for PING to ensure fastest possible response
   try {
     // Get interaction - try multiple sources for Vercel serverless compatibility
     let interaction = null;
@@ -111,10 +103,11 @@ interactionsRouter.post('/', async (req, res) => {
         console.error('Error parsing interaction body:', parseError);
         // If parsing fails but body might be PING, try to respond
         if (rawBodyString && rawBodyString.includes('"type":1')) {
-          sendResponse(200, { type: 1 });
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end('{"type":1}');
           return;
         }
-        sendResponse(400, { error: 'Invalid JSON' });
+        res.status(400).json({ error: 'Invalid JSON' });
         return;
       }
     }
@@ -124,7 +117,7 @@ interactionsRouter.post('/', async (req, res) => {
       req.rawBody = Buffer.from(rawBodyString, 'utf8');
     }
     
-    // CRITICAL: Handle PING - respond immediately but verify signature first
+    // CRITICAL: Handle PING FIRST - respond immediately but verify signature first
     // Discord verification sends PING with signatures - we must verify them
     if (interaction && (interaction.type === 1 || interaction.type === InteractionType.PING)) {
       console.log('Received PING, verifying signature...');
@@ -155,25 +148,43 @@ interactionsRouter.post('/', async (req, res) => {
       return;
     }
     
+    // Handle non-PING requests asynchronously
+    (async () => {
+      try {
+    
     // Verify signature for non-PING requests
     const publicKey = process.env.DISCORD_PUBLIC_KEY;
     if (publicKey) {
       const isValid = verifySignature(req);
       if (!isValid) {
         console.warn('Signature verification failed');
-        sendResponse(401, { error: 'Unauthorized' });
+        res.status(401).json({ error: 'Unauthorized' });
         return;
       }
     }
     
-    // Handle application commands
+    // Handle application commands - async
     if (interaction.type === InteractionType.APPLICATION_COMMAND) {
-      const response = await handleCommand(interaction);
-      return res.json(response);
+      (async () => {
+        try {
+          const response = await handleCommand(interaction);
+          res.json(response);
+        } catch (error) {
+          console.error('Error handling command:', error);
+          res.status(500).json({
+            type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+            data: {
+              content: '❌ An error occurred processing your command.',
+              flags: 64 // Ephemeral
+            }
+          });
+        }
+      })();
+      return;
     }
     
     // Unknown interaction type
-    sendResponse(400, { error: 'Unknown interaction type' });
+    res.status(400).json({ error: 'Unknown interaction type' });
   } catch (error) {
     console.error('Error handling Discord interaction:', error);
     // If error occurs, check if it might be a PING request
@@ -181,22 +192,21 @@ interactionsRouter.post('/', async (req, res) => {
       const bodyStr = typeof req.body === 'string' ? req.body : JSON.stringify(req.body || '');
       if (bodyStr && bodyStr.includes('"type":1')) {
         console.log('Error occurred but responding with PONG for potential PING');
-        sendResponse(200, { type: 1 });
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end('{"type":1}');
         return;
       }
     } catch (e) {
       // Ignore
     }
     
-    if (!responseSent) {
-      sendResponse(500, {
-        type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
-        data: {
-          content: '❌ An error occurred processing your command.',
-          flags: 64 // Ephemeral
-        }
-      });
-    }
+    res.status(500).json({
+      type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+      data: {
+        content: '❌ An error occurred processing your command.',
+        flags: 64 // Ephemeral
+      }
+    });
   }
 });
 
