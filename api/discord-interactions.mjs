@@ -50,16 +50,17 @@ export default async function handler(req, res) {
 
     // CRITICAL: Handle PING immediately - Discord verification
     // Discord requires EXACT response: {"type":1} with 200 status
-    // Must respond within 3 seconds
+    // Must respond within 3 seconds, no caching, immediate response
     if (interaction.type === 1) {
       console.log('[Discord Interactions] PING detected - responding with PONG');
-      // Set headers first
-      res.setHeader('Content-Type', 'application/json');
-      res.setHeader('Access-Control-Allow-Origin', '*');
-      // Set status and send exact response Discord expects
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.write('{"type":1}');
-      res.end();
+      // Set all headers at once - no caching, correct content type
+      res.writeHead(200, {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      });
+      res.end('{"type":1}');
       console.log('[Discord Interactions] PONG sent');
       return;
     }
