@@ -97,6 +97,7 @@ app.post('/api/discord/sync', wrapHandler(discordSyncHandler));
 // Discord interactions endpoint (for slash commands)
 const discordInteractionsRouter = (await import('./api/integrations/discord/interactions.js')).default;
 app.use('/api/discord/interactions', discordInteractionsRouter);
+app.use('/api/discord-interactions', discordInteractionsRouter);
 
 app.use((err, req, res, next) => {
   console.error('[Server] Unhandled error', err);
