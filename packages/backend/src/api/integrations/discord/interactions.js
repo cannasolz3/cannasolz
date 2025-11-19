@@ -124,8 +124,8 @@ interactionsRouter.post('/', async (req, res) => {
       req.rawBody = Buffer.from(rawBodyString, 'utf8');
     }
     
-    // CRITICAL: Handle PING - respond immediately
-    // Discord verification requires immediate response
+    // CRITICAL: Handle PING FIRST - before signature verification
+    // Discord verification requires immediate response with minimal headers
     if (interaction && (interaction.type === 1 || interaction.type === InteractionType.PING)) {
       console.log('Received PING, responding with PONG');
       // Remove all headers that might interfere
@@ -133,8 +133,11 @@ interactionsRouter.post('/', async (req, res) => {
       res.removeHeader('Access-Control-Allow-Credentials');
       res.removeHeader('Vary');
       res.removeHeader('X-Powered-By');
-      // Use res.json() to ensure proper JSON formatting
-      sendResponse(200, { type: 1 });
+      res.removeHeader('ETag');
+      res.removeHeader('Cache-Control');
+      // Use writeHead/end directly to avoid Express adding charset and cache headers
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end('{"type":1}');
       return;
     }
     
