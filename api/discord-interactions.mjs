@@ -49,12 +49,17 @@ export default async function handler(req, res) {
     console.log('[Discord Interactions] Interaction type:', interaction.type);
 
     // CRITICAL: Handle PING immediately - Discord verification
-    // This MUST respond with exact format: {"type":1}
+    // Discord requires EXACT response: {"type":1} with 200 status
+    // Must respond within 3 seconds
     if (interaction.type === 1) {
       console.log('[Discord Interactions] PING detected - responding with PONG');
+      // Set headers first
       res.setHeader('Content-Type', 'application/json');
-      res.status(200);
-      res.end('{"type":1}');
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      // Set status and send exact response Discord expects
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.write('{"type":1}');
+      res.end();
       console.log('[Discord Interactions] PONG sent');
       return;
     }
