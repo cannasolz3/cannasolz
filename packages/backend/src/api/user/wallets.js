@@ -32,7 +32,9 @@ userWalletsRouter.get('/', async (req, res) => {
       'SELECT wallet_address FROM user_wallets WHERE discord_id = $1',
       [req.session.user.discord_id]
     );
-    const wallets = result.rows.map(row => row.wallet_address);
+    const wallets = result.rows.map(row => ({
+      wallet_address: row.wallet_address
+    }));
     res.json({ wallets });
   } catch (error) {
     console.error('Error fetching user wallets:', error);
