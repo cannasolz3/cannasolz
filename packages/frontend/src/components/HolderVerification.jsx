@@ -78,16 +78,39 @@ const HolderVerification = () => {
     }
   };
 
-  // Handle wallet verification when connected
+  // Handle wallet verification when connected - allow multiple wallets
   useEffect(() => {
     const verifyWallet = async () => {
-      if (!connected || !publicKey || !discordUser || verificationStatus === 'verified') {
+      if (!connected || !publicKey || !discordUser) {
         return;
+      }
+
+      // Check if this wallet is already linked
+      try {
+        const checkResponse = await fetch(`${API_BASE}/api/user/wallets`, {
+          method: 'GET',
+          credentials: 'include',
+          headers: { 'Accept': 'application/json' }
+        });
+        
+        if (checkResponse.ok) {
+          const walletsData = await checkResponse.json();
+          const wallets = walletsData.wallets || [];
+          const isAlreadyLinked = wallets.some(w => w.wallet_address === publicKey.toString());
+          
+          if (isAlreadyLinked) {
+            // Wallet already linked, don't verify again
+            return;
+          }
+        }
+      } catch (err) {
+        console.error('Error checking wallets:', err);
       }
 
       try {
         setLoading(true);
-        const response = await fetch(`${API_BASE}/api/auth/wallet`, {
+        // Use POST /api/user/wallets to add wallet (supports multiple wallets)
+        const response = await fetch(`${API_BASE}/api/user/wallets`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -100,21 +123,25 @@ const HolderVerification = () => {
         });
 
         if (!response.ok) {
-          throw new Error('Failed to verify wallet');
+          throw new Error('Failed to connect wallet');
         }
 
         const data = await response.json();
         if (data.success) {
-          toast.success('Wallet verified successfully!');
-          setVerificationStatus('verified');
-          if (setDiscordUser && data.discord_user) {
-            setDiscordUser(data.discord_user);
+          toast.success('Wallet connected successfully!');
+          // Set verified status if this is the first wallet
+          if (!discordUser?.wallet_address) {
+            setVerificationStatus('verified');
+          }
+          // Refresh user data to show updated holdings from all wallets
+          if (setDiscordUser) {
+            // Trigger a refresh of user data
+            window.location.reload();
           }
         }
       } catch (error) {
-        console.error('Wallet verification error:', error);
-        toast.error('Failed to verify wallet. Please try again.');
-        setVerificationStatus('failed');
+        console.error('Wallet connection error:', error);
+        toast.error('Failed to connect wallet. Please try again.');
         setError(error.message);
       } finally {
         setLoading(false);
@@ -122,7 +149,7 @@ const HolderVerification = () => {
     };
 
     verifyWallet();
-  }, [connected, publicKey, discordUser, verificationStatus]);
+  }, [connected, publicKey, discordUser]);
 
   return (
     <div className="verification-modal-content">
@@ -164,20 +191,29 @@ const HolderVerification = () => {
         {/* Wallet Connection */}
         <div className="mb-8">
           <h3 className="text-lg font-semibold text-gray-300 mb-4 flex items-center gap-2">
-            Step 2: Connect Wallet
+            Step 2: Connect Wallet{discordUser?.wallet_address && <span className="text-green-400 text-sm ml-2">(You can connect multiple wallets)</span>}
             {connected && <span className="text-green-400">✓</span>}
           </h3>
           {connected ? (
-            <div className="flex items-center justify-between bg-gray-800 p-4 rounded-lg">
-              <div>
-                <p className="text-white font-medium">{publicKey.toString().slice(0, 4)}...{publicKey.toString().slice(-4)}</p>
-                <p className="text-green-400 text-sm">Connected</p>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between bg-gray-800 p-4 rounded-lg">
+                <div>
+                  <p className="text-white font-medium">{publicKey.toString().slice(0, 4)}...{publicKey.toString().slice(-4)}</p>
+                  <p className="text-green-400 text-sm">Connected</p>
+                </div>
+                <button
+                  onClick={disconnect}
+                  className="text-gray-400 hover:text-white transition-colors"
+                >
+                  Disconnect
+                </button>
               </div>
               <button
-                onClick={disconnect}
-                className="text-gray-400 hover:text-white transition-colors"
+                onClick={handleConnectWallet}
+                disabled={!discordUser || loading}
+                className="w-full bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
               >
-                Disconnect
+                {loading ? 'Connecting...' : 'Connect Another Wallet'}
               </button>
             </div>
           ) : (

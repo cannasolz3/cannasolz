@@ -8,7 +8,9 @@ import axios from 'axios';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
+// Try src/.env first, then ../.env (monitoring package root)
 dotenv.config({ path: `${__dirname}/.env` });
+dotenv.config({ path: `${__dirname}/../.env` });
 
 // Collection definitions
 const COLLECTIONS = [
@@ -90,6 +92,9 @@ async function fetchCollectionNFTs(collectionAddress) {
       }
 
       const items = response.data.result?.items || [];
+      const total = response.data.result?.total || null;
+      
+      console.log(`   📄 Page ${page}: Fetched ${items.length} cNFTs${total ? ` (Total in collection: ${total})` : ''}`);
       
       if (!items || items.length === 0) {
         hasMore = false;
@@ -97,6 +102,21 @@ async function fetchCollectionNFTs(collectionAddress) {
       }
 
       allNFTs.push(...items);
+      
+      // Check if we've fetched all items based on total count
+      if (total !== null && allNFTs.length >= total) {
+        console.log(`   ✅ Fetched all ${total} cNFTs from collection`);
+        hasMore = false;
+        break;
+      }
+      
+      // If we got fewer items than PAGE_SIZE, this is likely the last page
+      // But continue to next page to be absolutely sure we don't miss any
+      if (items.length < PAGE_SIZE) {
+        // This is likely the last page, but continue to verify
+        console.log(`   ⚠️  Page ${page} returned ${items.length} items (< ${PAGE_SIZE}), checking next page to ensure completeness...`);
+      }
+      
       await new Promise(resolve => setTimeout(resolve, 500));
       page++;
     }
