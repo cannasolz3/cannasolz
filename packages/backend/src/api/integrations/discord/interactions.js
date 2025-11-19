@@ -116,11 +116,8 @@ interactionsRouter.post('/', async (req, res) => {
       res.removeHeader('Access-Control-Allow-Credentials');
       res.removeHeader('Vary');
       res.removeHeader('X-Powered-By');
-      // Send response immediately - exact format Discord expects
-      res.writeHead(200, {
-        'Content-Type': 'application/json'
-      });
-      res.end('{"type":1}');
+      // Use res.json() to ensure proper JSON formatting
+      res.status(200).json({ type: 1 });
       return;
     }
     
