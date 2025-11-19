@@ -179,7 +179,48 @@ userWalletsRouter.post('/', async (req, res) => {
       [wallet_address, discordId, discordName]
     );
 
-    // Rebuild roles JSON from collection_counts + roles catalog
+    // Update harvester flags based on collection_counts (1+ cNFT = eligible)
+    // Ensure harvester columns exist
+    const harvesterColumns = [
+      'harvester_gold',
+      'harvester_silver',
+      'harvester_purple',
+      'harvester_dark_green',
+      'harvester_light_green'
+    ];
+    
+    for (const col of harvesterColumns) {
+      try {
+        await dbPool.query(`ALTER TABLE user_roles ADD COLUMN IF NOT EXISTS ${col} BOOLEAN DEFAULT FALSE`);
+      } catch (error) {
+        if (error.code !== '42701') console.error(`Error adding ${col}:`, error.message);
+      }
+    }
+
+    // Update harvester flags from collection_counts
+    await dbPool.query(
+      `
+        INSERT INTO user_roles (discord_id, harvester_gold, harvester_silver, harvester_purple, harvester_dark_green, harvester_light_green)
+        SELECT 
+          $1::varchar,
+          (cnft_gold_count > 0) AS harvester_gold,
+          (cnft_silver_count > 0) AS harvester_silver,
+          (cnft_purple_count > 0) AS harvester_purple,
+          (cnft_dark_green_count > 0) AS harvester_dark_green,
+          (cnft_light_green_count > 0) AS harvester_light_green
+        FROM collection_counts
+        WHERE discord_id = $1::varchar
+        ON CONFLICT (discord_id) DO UPDATE SET
+          harvester_gold = EXCLUDED.harvester_gold,
+          harvester_silver = EXCLUDED.harvester_silver,
+          harvester_purple = EXCLUDED.harvester_purple,
+          harvester_dark_green = EXCLUDED.harvester_dark_green,
+          harvester_light_green = EXCLUDED.harvester_light_green
+      `,
+      [discordId]
+    );
+
+    // Rebuild roles JSON from collection_counts + roles catalog (includes harvester flags)
     await dbPool.query('SELECT rebuild_user_roles($1::varchar)', [discordId]);
 
     // Automatically sync Discord roles after wallet link

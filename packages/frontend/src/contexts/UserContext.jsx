@@ -59,16 +59,34 @@ export const UserProvider = ({ children }) => {
     checkAuth();
   }, []);
 
-  // Auto-link wallet on connect
+  // Auto-link wallet on connect (only if not already linked)
   useEffect(() => {
     if (connected && publicKey && discordUser && discordUser.discord_id) {
-      // Optionally, check if wallet is already linked (if discordUser.wallets is available)
+      // Check if wallet is already linked before adding
       fetch(`${API_BASE_URL}/api/user/wallets`, {
-        method: 'POST',
+        method: 'GET',
         credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ wallet_address: publicKey.toString() })
-      });
+        headers: { 'Accept': 'application/json' }
+      })
+      .then(r => r.ok ? r.json() : { wallets: [] })
+      .then(data => {
+        const wallets = data.wallets || [];
+        const isAlreadyLinked = wallets.some(w => {
+          const addr = typeof w === 'string' ? w : w.wallet_address;
+          return addr === publicKey.toString();
+        });
+        
+        if (!isAlreadyLinked) {
+          // Auto-link if not already linked
+          fetch(`${API_BASE_URL}/api/user/wallets`, {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ wallet_address: publicKey.toString() })
+          }).catch(err => console.error('Auto-link error:', err));
+        }
+      })
+      .catch(err => console.error('Error checking wallets:', err));
     }
   }, [connected, publicKey, discordUser]);
 

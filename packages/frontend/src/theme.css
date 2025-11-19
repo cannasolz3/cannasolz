@@ -315,6 +315,48 @@
   background: rgba(255, 255, 255, 0.05);
 }
 
+.dropdown-section {
+  margin: 0.5rem 0;
+  padding-top: 0.5rem;
+  border-top: 1px solid rgba(149, 213, 178, 0.1);
+}
+
+.dropdown-section-header {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: rgba(230, 242, 230, 0.6);
+  padding: 0.5rem 0.5rem 0.25rem;
+  font-weight: 600;
+}
+
+.dropdown-item.wallet-item {
+  padding: 0.5rem;
+  margin-bottom: 0.25rem;
+  background: rgba(255, 255, 255, 0.03);
+  cursor: default;
+}
+
+.dropdown-item.add-wallet {
+  background: rgba(149, 213, 178, 0.1);
+  border: 1px solid rgba(149, 213, 178, 0.2);
+  cursor: pointer;
+  margin-top: 0.5rem;
+  font-weight: 600;
+  color: var(--brand-accent, #95D5B2);
+  transition: background 0.2s ease;
+}
+
+.dropdown-item.add-wallet:hover {
+  background: rgba(149, 213, 178, 0.15);
+}
+
+.dropdown-divider {
+  height: 1px;
+  background: rgba(149, 213, 178, 0.1);
+  margin: 0.5rem 0;
+}
+
 @media (max-width: 768px) {
   .hero-media {
     flex-basis: 96px;
