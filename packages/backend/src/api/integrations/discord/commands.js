@@ -22,7 +22,8 @@ const InteractionResponseType = {
 };
 
 const MAGIC_EDEN_API_BASE = 'https://api-mainnet.magiceden.io/v2';
-const COLLECTION_SYMBOL = 'cannasolz';
+const MAGIC_EDEN_SYMBOL = 'cannasolz'; // Magic Eden API uses lowercase
+const DB_COLLECTION_SYMBOL = 'CNSZ'; // Database uses uppercase symbol
 
 // Convert lamports to SOL
 function lamportsToSol(lamports) {
@@ -43,7 +44,7 @@ function formatNumber(num) {
 // Fetch collection data from Magic Eden
 async function fetchCollectionData() {
   try {
-    const response = await axios.get(`${MAGIC_EDEN_API_BASE}/collections/${COLLECTION_SYMBOL}`, {
+    const response = await axios.get(`${MAGIC_EDEN_API_BASE}/collections/${MAGIC_EDEN_SYMBOL}`, {
       timeout: 10000
     });
     return response.data;
@@ -60,7 +61,7 @@ async function getTotalCollectionCount() {
     client = await dbPool.connect();
     const result = await client.query(
       'SELECT COUNT(*) as total FROM nft_metadata WHERE symbol = $1',
-      [COLLECTION_SYMBOL]
+      [DB_COLLECTION_SYMBOL]
     );
     return parseInt(result.rows[0]?.total || 0, 10);
   } catch (error) {
@@ -125,7 +126,7 @@ export async function handleCollectionCommand() {
         icon_url: 'https://magiceden.io/favicon.ico'
       },
       timestamp: new Date().toISOString(),
-      url: `https://magiceden.io/marketplace/${COLLECTION_SYMBOL}`
+      url: `https://magiceden.io/marketplace/${MAGIC_EDEN_SYMBOL}`
     };
     
     return {
