@@ -23,12 +23,11 @@ const InteractionResponseType = {
 
 const interactionsRouter = expressPkg.Router();
 
-// Handle OPTIONS requests (CORS preflight)
+// Handle OPTIONS requests - NO CORS headers for Discord verification
 interactionsRouter.options('/', (req, res) => {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Signature-Ed25519, X-Signature-Timestamp');
-  res.status(200).end();
+  // Discord doesn't want CORS headers - respond with minimal headers
+  res.writeHead(200);
+  res.end();
 });
 
 // Middleware to capture raw body BEFORE any parsing
@@ -133,7 +132,12 @@ interactionsRouter.post('/', (req, res) => {
         }
       }
       
-      // Respond immediately with exact format - no extra headers
+      // Respond immediately with exact format - NO CORS headers, NO extra headers
+      // Remove any headers Express might have added
+      res.removeHeader('Access-Control-Allow-Origin');
+      res.removeHeader('Access-Control-Allow-Credentials');
+      res.removeHeader('Vary');
+      res.removeHeader('X-Powered-By');
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end('{"type":1}');
       return;

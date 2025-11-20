@@ -32,7 +32,7 @@ app.set('trust proxy', 1);
 // CORS - apply to all routes EXCEPT Discord interactions
 app.use((req, res, next) => {
   // Skip CORS for Discord interactions - Discord doesn't like CORS headers
-  if (req.path === '/api/discord/interactions') {
+  if (req.path === '/api/discord/interactions' || req.path === '/api/discord-interactions') {
     return next();
   }
   cors({
