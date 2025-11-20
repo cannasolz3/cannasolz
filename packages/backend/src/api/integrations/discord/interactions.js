@@ -84,7 +84,35 @@ function verifySignature(req) {
 
 // Handle Discord interactions
 interactionsRouter.post('/', (req, res) => {
-  // Make handler synchronous for PING to ensure fastest possible response
+  // CRITICAL: Handle PING FIRST - before any parsing or processing
+  // Check for PING in raw body string to respond as fast as possible
+  try {
+    // Try to detect PING immediately from raw body
+    let isPing = false;
+    if (req.rawBody && Buffer.isBuffer(req.rawBody)) {
+      const rawStr = req.rawBody.toString('utf8');
+      if (rawStr.includes('"type":1') || rawStr.includes('"type": 1')) {
+        isPing = true;
+      }
+    } else if (req.body && typeof req.body === 'object' && req.body.type === 1) {
+      isPing = true;
+    }
+    
+    // If PING detected, respond immediately
+    if (isPing) {
+      res.removeHeader('Access-Control-Allow-Origin');
+      res.removeHeader('Access-Control-Allow-Credentials');
+      res.removeHeader('Vary');
+      res.removeHeader('X-Powered-By');
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end('{"type":1}');
+      return;
+    }
+  } catch (e) {
+    // If error detecting PING, continue to normal processing
+  }
+  
+  // Normal processing for non-PING requests
   try {
     // Get interaction - try multiple sources for Vercel serverless compatibility
     let interaction = null;
@@ -110,7 +138,6 @@ interactionsRouter.post('/', (req, res) => {
       try {
         interaction = JSON.parse(rawBodyString);
       } catch (parseError) {
-        console.error('Error parsing interaction body:', parseError);
         // If parsing fails but body might be PING, try to respond
         if (rawBodyString && rawBodyString.includes('"type":1')) {
           res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -122,17 +149,8 @@ interactionsRouter.post('/', (req, res) => {
       }
     }
     
-    // Ensure rawBody is set for signature verification BEFORE handling PING
-    if (!req.rawBody && rawBodyString) {
-      req.rawBody = Buffer.from(rawBodyString, 'utf8');
-    }
-    
-    // CRITICAL: Handle PING FIRST - respond immediately, NO signature verification
-    // Discord docs: PING requests don't require signature verification
-    // During verification, Discord sends PING - we must respond with {"type":1}
+    // Handle PING (fallback if not caught above)
     if (interaction && (interaction.type === 1 || interaction.type === InteractionType.PING)) {
-      // Respond immediately with exact format - NO CORS headers, NO extra headers
-      // Remove any headers Express might have added
       res.removeHeader('Access-Control-Allow-Origin');
       res.removeHeader('Access-Control-Allow-Credentials');
       res.removeHeader('Vary');
