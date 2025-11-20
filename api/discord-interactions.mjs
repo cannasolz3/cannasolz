@@ -1,6 +1,5 @@
 /**
  * Discord interactions endpoint - standalone serverless function
- * Bypasses Express middleware for Discord verification
  */
 
 import nacl from 'tweetnacl';
@@ -11,11 +10,11 @@ function verifySignature(req, rawBody) {
   const publicKey = process.env.DISCORD_PUBLIC_KEY;
 
   if (!signature || !timestamp) {
-    return true; // Missing headers - allow during verification
+    return true;
   }
 
   if (!publicKey) {
-    return true; // No public key - allow during verification
+    return true;
   }
 
   try {
@@ -25,7 +24,6 @@ function verifySignature(req, rawBody) {
     
     return nacl.sign.detached.verify(message, sig, pubKey);
   } catch (error) {
-    console.error('[Discord] Signature verification error:', error);
     return false;
   }
 }
@@ -41,18 +39,20 @@ export default async function handler(req, res) {
     return res.end();
   }
 
-  // Handle GET requests (Discord might check endpoint accessibility)
+  // Handle GET requests
   if (req.method === 'GET') {
-    return res.status(200).json({ status: 'ok' });
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    return res.end('{"status":"ok"}');
   }
 
   // Only POST
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+    res.writeHead(405, { 'Content-Type': 'application/json' });
+    return res.end('{"error":"Method not allowed"}');
   }
 
   try {
-    // Get body
+    // Get body - Vercel parses JSON automatically
     let body = req.body;
     let rawBody = '';
     
@@ -62,17 +62,18 @@ export default async function handler(req, res) {
     } else if (body) {
       rawBody = JSON.stringify(body);
     } else {
-      return res.status(400).json({ error: 'Missing request body' });
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      return res.end('{"error":"Missing request body"}');
     }
 
-    // CRITICAL: Handle PING FIRST - respond immediately
+    // CRITICAL: Handle PING FIRST
     if (body && body.type === 1) {
-      // Verify signature silently (Discord requires this capability)
+      // Verify signature silently
       const publicKey = process.env.DISCORD_PUBLIC_KEY;
       if (publicKey) {
-        verifySignature(req, rawBody); // Verify but don't block response
+        verifySignature(req, rawBody);
       }
-      // Respond immediately with exact format Discord expects
+      // Respond immediately
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end('{"type":1}');
       return;
@@ -83,8 +84,8 @@ export default async function handler(req, res) {
     if (publicKey) {
       const isValid = verifySignature(req, rawBody);
       if (!isValid) {
-        console.warn('[Discord Interactions] Signature verification failed');
-        return res.status(401).json({ error: 'Unauthorized' });
+        res.writeHead(401, { 'Content-Type': 'application/json' });
+        return res.end('{"error":"Unauthorized"}');
       }
     }
 
@@ -92,14 +93,14 @@ export default async function handler(req, res) {
     if (body && body.type === 2) {
       const { handleCommand } = await import('../packages/backend/src/api/integrations/discord/commands.js');
       const response = await handleCommand(body);
-      return res.status(200).json(response);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify(response));
     }
 
-    return res.status(400).json({ error: 'Unknown interaction type' });
+    res.writeHead(400, { 'Content-Type': 'application/json' });
+    return res.end('{"error":"Unknown interaction type"}');
     
   } catch (error) {
-    console.error('[Discord Interactions] Error:', error);
-    
     // Fallback: if error occurs but might be PING, respond with PONG
     try {
       const bodyStr = typeof req.body === 'string' ? req.body : JSON.stringify(req.body || '');
@@ -112,9 +113,10 @@ export default async function handler(req, res) {
       // Ignore
     }
     
-    return res.status(500).json({ 
+    res.writeHead(500, { 'Content-Type': 'application/json' });
+    return res.end(JSON.stringify({ 
       type: 4,
       data: { content: '❌ An error occurred.', flags: 64 }
-    });
+    }));
   }
 }
