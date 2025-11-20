@@ -105,7 +105,7 @@ export async function handleMyCSz420Command(interaction) {
         type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
         data: {
           content: '❌ Unable to identify user.',
-          flags: 64 // Ephemeral
+          flags: 0 // Public
         }
       };
     }
@@ -133,7 +133,7 @@ export async function handleMyCSz420Command(interaction) {
         type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
         data: {
           content: '❌ You do not have permission to view other users\' token data.',
-          flags: 64 // Ephemeral
+          flags: 0 // Public
         }
       };
     } else {
@@ -146,7 +146,7 @@ export async function handleMyCSz420Command(interaction) {
         type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
         data: {
           content: '❌ Invalid user specified.',
-          flags: 64 // Ephemeral
+          flags: 0 // Public
         }
       };
     }
@@ -157,20 +157,50 @@ export async function handleMyCSz420Command(interaction) {
     
     // Query token data: daily yield, unclaimed balance, and actual token balance
     client = await dbPool.connect();
+    
+    // First get daily yield and unclaimed balance
     const result = await client.query(
       `SELECT 
         COALESCE(dr.total_daily_reward, 0) as daily_yield,
-        COALESCE(ca.unclaimed_amount, 0) as unclaimed_balance,
-        COALESCE(SUM(th.balance), 0) as actual_balance
+        COALESCE(ca.unclaimed_amount, 0) as unclaimed_balance
       FROM (SELECT $1::text as discord_id) AS u
       LEFT JOIN daily_rewards dr ON dr.discord_id = u.discord_id
-      LEFT JOIN claim_accounts ca ON ca.discord_id = u.discord_id
-      LEFT JOIN token_holders th ON th.owner_discord_id = u.discord_id
-      GROUP BY dr.total_daily_reward, ca.unclaimed_amount`,
+      LEFT JOIN claim_accounts ca ON ca.discord_id = u.discord_id`,
       [discordId]
     );
     
-    const row = result.rows[0];
+    const row = result.rows[0] || { daily_yield: 0, unclaimed_balance: 0 };
+    
+    // Get actual token balance - first try by owner_discord_id
+    let balanceResult = await client.query(
+      `SELECT COALESCE(SUM(balance), 0) AS balance
+       FROM token_holders
+       WHERE owner_discord_id = $1`,
+      [discordId]
+    );
+    
+    let actualBalance = Number(balanceResult.rows[0]?.balance || 0);
+    
+    // Fallback: if no balance found by owner_discord_id, check wallets from user_wallets
+    if (actualBalance === 0) {
+      const walletRows = await client.query(
+        `SELECT wallet_address FROM user_wallets WHERE discord_id = $1`,
+        [discordId]
+      );
+      
+      if (walletRows.rows.length > 0) {
+        const walletAddresses = walletRows.rows.map(r => r.wallet_address);
+        const balanceRows = await client.query(
+          `SELECT COALESCE(SUM(balance), 0) AS balance
+           FROM token_holders
+           WHERE wallet_address = ANY($1::text[])`,
+          [walletAddresses]
+        );
+        actualBalance = Number(balanceRows.rows[0]?.balance || 0);
+      }
+    }
+    
+    row.actual_balance = actualBalance;
     
     if (!row) {
       return {
@@ -187,7 +217,7 @@ export async function handleMyCSz420Command(interaction) {
             },
             timestamp: new Date().toISOString()
           }],
-          flags: 64 // Ephemeral
+          flags: 0 // Public
         }
       };
     }
@@ -235,7 +265,7 @@ export async function handleMyCSz420Command(interaction) {
           },
           timestamp: new Date().toISOString()
         }],
-        flags: 64 // Ephemeral
+        flags: 0 // Public
       }
     };
   } catch (error) {
@@ -284,7 +314,7 @@ export async function handleMyNFTsCommand(interaction) {
         type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
         data: {
           content: '❌ Unable to identify user.',
-          flags: 64 // Ephemeral
+          flags: 0 // Public
         }
       };
     }
@@ -312,7 +342,7 @@ export async function handleMyNFTsCommand(interaction) {
         type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
         data: {
           content: '❌ You do not have permission to view other users\' NFT holdings.',
-          flags: 64 // Ephemeral
+          flags: 0 // Public
         }
       };
     } else {
@@ -325,7 +355,7 @@ export async function handleMyNFTsCommand(interaction) {
         type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
         data: {
           content: '❌ Invalid user specified.',
-          flags: 64 // Ephemeral
+          flags: 0 // Public
         }
       };
     }
@@ -373,7 +403,7 @@ export async function handleMyNFTsCommand(interaction) {
             },
             timestamp: new Date().toISOString()
           }],
-          flags: 64 // Ephemeral
+          flags: 0 // Public
         }
       };
     }
@@ -445,7 +475,7 @@ export async function handleMyNFTsCommand(interaction) {
           },
           timestamp: new Date().toISOString()
         }],
-        flags: 64 // Ephemeral
+        flags: 0 // Public
       }
     };
   } catch (error) {
@@ -522,7 +552,8 @@ export async function handleCollectionCommand() {
     return {
       type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
       data: {
-        embeds: [embed]
+        embeds: [embed],
+        flags: 0 // Public
       }
     };
   } catch (error) {
@@ -576,7 +607,7 @@ export async function handleHelpCommand() {
         },
         timestamp: new Date().toISOString()
       }],
-      flags: 64 // Ephemeral
+      flags: 0 // Public
     }
   };
 }
@@ -592,7 +623,7 @@ export async function handlePayCommand(interaction) {
         type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
         data: {
           content: '❌ You do not have permission to use this command.',
-          flags: 64 // Ephemeral
+          flags: 0 // Public
         }
       };
     }
@@ -606,7 +637,7 @@ export async function handlePayCommand(interaction) {
         type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
         data: {
           content: '❌ Missing required options: user and amount',
-          flags: 64 // Ephemeral
+          flags: 0 // Public
         }
       };
     }
@@ -619,7 +650,7 @@ export async function handlePayCommand(interaction) {
         type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
         data: {
           content: '❌ Invalid amount. Must be a positive number.',
-          flags: 64 // Ephemeral
+          flags: 0 // Public
         }
       };
     }
@@ -631,7 +662,7 @@ export async function handlePayCommand(interaction) {
         type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
         data: {
           content: '❌ Invalid user specified.',
-          flags: 64 // Ephemeral
+          flags: 0 // Public
         }
       };
     }
@@ -670,7 +701,7 @@ export async function handlePayCommand(interaction) {
         type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
         data: {
           content: '❌ Failed to update user account.',
-          flags: 64 // Ephemeral
+          flags: 0 // Public
         }
       };
     }
@@ -757,7 +788,7 @@ export async function handleCommand(interaction) {
         type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
         data: {
           content: `Unknown command: ${commandName}`,
-          flags: 64 // Ephemeral
+          flags: 0 // Public
         }
       };
   }
