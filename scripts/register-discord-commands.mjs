@@ -33,36 +33,64 @@ const commands = [
     name: 'collection',
     description: 'Display CannaSolz collection statistics from Magic Eden',
     type: 1 // CHAT_INPUT
+  },
+  {
+    name: 'mynfts',
+    description: 'View your CannaSolz NFT holdings',
+    type: 1 // CHAT_INPUT
   }
 ];
 
 async function registerCommands() {
   try {
-    const url = DISCORD_GUILD_ID
-      ? `${DISCORD_API}/applications/${DISCORD_CLIENT_ID}/guilds/${DISCORD_GUILD_ID}/commands`
-      : `${DISCORD_API}/applications/${DISCORD_CLIENT_ID}/commands`;
+    // Check if we should register globally or to a specific guild
+    // Set REGISTER_GLOBAL=true to register globally, or provide DISCORD_GUILD_ID for a specific server
+    const registerGlobal = process.env.REGISTER_GLOBAL === 'true' || !DISCORD_GUILD_ID;
     
-    const scope = DISCORD_GUILD_ID ? 'guild' : 'global';
+    const url = registerGlobal
+      ? `${DISCORD_API}/applications/${DISCORD_CLIENT_ID}/commands`
+      : `${DISCORD_API}/applications/${DISCORD_CLIENT_ID}/guilds/${DISCORD_GUILD_ID}/commands`;
+    
+    const scope = registerGlobal ? 'global' : 'guild';
     console.log(`\n📝 Registering ${scope} commands...`);
-    
-    for (const command of commands) {
-      console.log(`   Registering: /${command.name}`);
-      
-      const response = await axios.put(
-        `${url}/${command.name}`,
-        command,
-        {
-          headers: {
-            'Authorization': `Bot ${DISCORD_BOT_TOKEN}`,
-            'Content-Type': 'application/json'
-          }
-        }
-      );
-      
-      console.log(`   ✅ Registered: /${command.name} (ID: ${response.data.id})`);
+    if (!registerGlobal) {
+      console.log(`   Guild ID: ${DISCORD_GUILD_ID}`);
     }
     
-    console.log(`\n✅ All commands registered successfully!`);
+    // First, delete all existing commands (optional - comment out if you want to keep existing commands)
+    // Uncomment the following block if you want to clear all commands first:
+    /*
+    console.log('   Clearing existing commands...');
+    await axios.put(url, [], {
+      headers: {
+        'Authorization': `Bot ${DISCORD_BOT_TOKEN}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    */
+    
+    // Register all commands at once using PUT (bulk update)
+    console.log(`   Registering ${commands.length} command(s)...`);
+    for (const command of commands) {
+      console.log(`      - /${command.name}: ${command.description}`);
+    }
+    
+    const response = await axios.put(
+      url,
+      commands,
+      {
+        headers: {
+          'Authorization': `Bot ${DISCORD_BOT_TOKEN}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+    
+    console.log(`\n✅ Successfully registered ${response.data.length} command(s)!`);
+    response.data.forEach(cmd => {
+      console.log(`   ✅ /${cmd.name} (ID: ${cmd.id})`);
+    });
+    
     console.log(`\nCommands are now available in ${scope === 'guild' ? 'your server' : 'all servers'}`);
     
   } catch (error) {
