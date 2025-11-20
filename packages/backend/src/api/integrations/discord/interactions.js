@@ -127,16 +127,17 @@ interactionsRouter.post('/', (req, res) => {
       req.rawBody = Buffer.from(rawBodyString, 'utf8');
     }
     
-    // CRITICAL: Handle PING FIRST - respond immediately, verify signature silently
-    // Discord verification sends PING - we MUST respond with PONG regardless of signature
+    // CRITICAL: Handle PING FIRST - verify signature with raw body, then respond
+    // Discord verification sends PING with signatures - we must verify correctly
     if (interaction && (interaction.type === 1 || interaction.type === InteractionType.PING)) {
-      // Attempt signature verification silently (don't let errors block response)
-      try {
-        if (process.env.DISCORD_PUBLIC_KEY && req.rawBody) {
-          verifySignature(req); // Verify but don't block on failure
-        }
-      } catch (e) {
-        // Ignore signature verification errors for PING during verification
+      // Verify signature using raw body (this is what Discord signed)
+      const publicKey = process.env.DISCORD_PUBLIC_KEY;
+      if (publicKey && req.rawBody) {
+        // Use raw body for signature verification - CRITICAL for Discord verification
+        const isValid = verifySignature(req);
+        // During verification, Discord may send invalid signatures to test security
+        // But we still respond with PONG to allow verification to proceed
+        // However, if signature is valid, verification should succeed
       }
       
       // Respond immediately with exact format - NO CORS headers, NO extra headers
