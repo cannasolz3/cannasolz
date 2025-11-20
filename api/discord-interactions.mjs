@@ -78,8 +78,8 @@ export default async function handler(req, res) {
     if (body && body.type === 1) {
       console.log('[Discord Interactions] PING received - responding with PONG');
       // Respond immediately with exact format Discord expects
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      return res.end('{"type":1}');
+      res.status(200).json({ type: 1 });
+      return;
     }
 
     // Verify signature for non-PING requests
@@ -109,8 +109,8 @@ export default async function handler(req, res) {
       const bodyStr = typeof req.body === 'string' ? req.body : JSON.stringify(req.body || '');
       if (bodyStr && bodyStr.includes('"type":1')) {
         console.log('[Discord Interactions] Fallback PONG after error');
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        return res.end('{"type":1}');
+        res.status(200).json({ type: 1 });
+        return;
       }
     } catch (e) {
       // Ignore
