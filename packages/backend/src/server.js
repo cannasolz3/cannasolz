@@ -5,6 +5,7 @@ import expressPkg from 'express';
 import cors from 'cors';
 import session from 'express-session';
 import dotenv from 'dotenv';
+import { verifyKey } from 'discord-interactions';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -95,9 +96,76 @@ const discordSyncHandler = (await import('./api/integrations/discord/sync.js')).
 app.post('/api/discord/sync', wrapHandler(discordSyncHandler));
 
 // Discord interactions endpoint (for slash commands)
-const discordInteractionsRouter = (await import('./api/integrations/discord/interactions.js')).default;
-app.use('/api/discord/interactions', discordInteractionsRouter);
-app.use('/api/discord-interactions', discordInteractionsRouter);
+// Use express.raw() directly in route handler like working BUXDAO implementation
+const { handleCommand } = await import('./api/integrations/discord/commands.js');
+
+// Shared handler function
+const discordInteractionHandler = async (req, res) => {
+  try {
+    console.log('[Discord] Interaction hit:', {
+      time: new Date().toISOString(),
+      contentType: req.headers['content-type'],
+      userAgent: req.headers['user-agent'],
+      hasSig: !!req.headers['x-signature-ed25519'],
+      hasTs: !!req.headers['x-signature-timestamp']
+    });
+    
+    const signature = req.headers['x-signature-ed25519'];
+    const timestamp = req.headers['x-signature-timestamp'];
+
+    // Use the exact raw body buffer for signature verification
+    const rawBody = req.body instanceof Buffer ? req.body : Buffer.from(typeof req.body === 'string' ? req.body : JSON.stringify(req.body || {}));
+    const strBody = rawBody.toString('utf8');
+
+    // Parse interaction first
+    let interaction;
+    try {
+      interaction = JSON.parse(strBody);
+    } catch (e) {
+      console.error('[Discord] JSON parse error:', e.message);
+      return res.status(400).send('Bad Request');
+    }
+
+    console.log('[Discord] Raw length:', rawBody.length, 'Parsed type:', interaction?.type);
+
+    // Verify the request is from Discord (required for all interactions including PING)
+    const isValidRequest = await verifyKey(
+      rawBody,
+      signature,
+      timestamp,
+      process.env.DISCORD_PUBLIC_KEY
+    );
+
+    console.log('[Discord] Verified:', isValidRequest, 'Type:', interaction?.type, 'Cmd:', interaction?.data?.name);
+
+    // Reply to PING (type 1) only if signature is valid
+    if (interaction?.type === 1) {
+      if (!isValidRequest) {
+        return res.status(401).send('Invalid request signature');
+      }
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      return res.end('{"type":1}');
+    }
+
+    if (!isValidRequest) {
+      return res.status(401).send('Invalid request signature');
+    }
+
+    // Handle application commands
+    if (interaction.type === 2 && interaction.data) {
+      const response = await handleCommand(interaction);
+      return res.json(response);
+    }
+
+    return res.json({ type: 4, data: { content: 'Unknown interaction type', flags: 64 } });
+  } catch (error) {
+    console.error('[Discord] Critical interaction error:', error);
+    return res.json({ type: 4, data: { content: 'An error occurred processing the command', flags: 64 } });
+  }
+};
+
+app.post('/api/discord-interactions', expressPkg.raw({ type: '*/*' }), discordInteractionHandler);
+app.post('/api/discord/interactions', expressPkg.raw({ type: '*/*' }), discordInteractionHandler);
 
 app.use((err, req, res, next) => {
   console.error('[Server] Unhandled error', err);

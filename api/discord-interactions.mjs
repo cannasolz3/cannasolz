@@ -1,73 +1,93 @@
 /**
  * Discord interactions endpoint - STANDALONE serverless function
- * Completely bypasses Express to avoid any middleware interference
+ * Matches the working BUXDAO implementation exactly
  */
 
-import nacl from 'tweetnacl';
-
-function verifySignature(req, rawBody) {
-  const signature = req.headers['x-signature-ed25519'];
-  const timestamp = req.headers['x-signature-timestamp'];
-  const publicKey = process.env.DISCORD_PUBLIC_KEY;
-
-  if (!signature || !timestamp || !publicKey) {
-    return false;
-  }
-
-  try {
-    if (signature.length !== 128) return false; // Ed25519 sig is 64 bytes = 128 hex chars
-    const message = Buffer.from(timestamp + rawBody);
-    const sig = Buffer.from(signature, 'hex');
-    const pubKey = Buffer.from(publicKey, 'hex');
-    if (sig.length !== 64 || pubKey.length !== 32) return false;
-    return nacl.sign.detached.verify(message, sig, pubKey);
-  } catch (e) {
-    return false;
-  }
-}
+import { verifyKey } from 'discord-interactions';
 
 export default async function handler(req, res) {
-  // Only POST
-  if (req.method !== 'POST') {
-    res.writeHead(405, { 'Content-Type': 'application/json' });
-    return res.end('{"error":"Method not allowed"}');
-  }
-
   try {
-    // Get body - Vercel parses JSON automatically
-    const body = req.body || {};
-    const rawBody = typeof req.body === 'string' ? req.body : JSON.stringify(req.body || {});
-    
-    // CRITICAL: Handle PING immediately
-    if (body.type === 1) {
-      // For PING during verification, Discord may send valid signatures
-      // We must verify and respond, but also handle invalid sigs gracefully
-      const publicKey = process.env.DISCORD_PUBLIC_KEY;
-      if (publicKey && req.headers['x-signature-ed25519'] && req.headers['x-signature-timestamp']) {
-        // Attempt signature verification
-        // Note: rawBody is reconstructed, so verification may fail even with valid sigs
-        // But we still respond to allow verification to proceed
-        try {
-          verifySignature(req, rawBody);
-        } catch (e) {
-          // Ignore verification errors for PING during verification
-        }
+    // Log for debugging
+    console.log('[Discord] Interaction hit:', {
+      time: new Date().toISOString(),
+      contentType: req.headers['content-type'],
+      userAgent: req.headers['user-agent'],
+      hasSig: !!req.headers['x-signature-ed25519'],
+      hasTs: !!req.headers['x-signature-timestamp']
+    });
+
+    const signature = req.headers['x-signature-ed25519'];
+    const timestamp = req.headers['x-signature-timestamp'];
+
+    // Get raw body - Vercel may parse it, so we need to reconstruct it
+    let rawBody;
+    if (req.body instanceof Buffer) {
+      rawBody = req.body;
+    } else if (typeof req.body === 'string') {
+      rawBody = Buffer.from(req.body, 'utf8');
+    } else if (req.body) {
+      // Body was parsed as JSON - reconstruct it
+      rawBody = Buffer.from(JSON.stringify(req.body), 'utf8');
+    } else {
+      return res.status(400).json({ error: 'Missing request body' });
+    }
+
+    // Parse interaction for type checking
+    let interaction;
+    try {
+      interaction = JSON.parse(rawBody.toString('utf8'));
+    } catch (e) {
+      console.error('[Discord] JSON parse error:', e.message);
+      return res.status(400).json({ error: 'Invalid JSON' });
+    }
+
+    console.log('[Discord] Raw length:', rawBody.length, 'Parsed type:', interaction?.type);
+
+    // Verify the request is from Discord using the exact raw body buffer
+    const isValidRequest = await verifyKey(
+      rawBody,
+      signature,
+      timestamp,
+      process.env.DISCORD_PUBLIC_KEY
+    );
+
+    console.log('[Discord] Verified:', isValidRequest, 'Type:', interaction?.type, 'Cmd:', interaction?.data?.name);
+
+    // Handle PING (type 1) - respond immediately with exact format
+    if (interaction?.type === 1) {
+      if (!isValidRequest) {
+        console.warn('[Discord] PING signature verification failed');
+        return res.status(401).json({ error: 'Invalid request signature' });
       }
-      
-      // Always respond with PONG for PING requests
+      console.log('[Discord] Responding to PING');
       res.writeHead(200, { 'Content-Type': 'application/json' });
       return res.end('{"type":1}');
     }
 
-    // For non-PING requests, return error (commands handled by Express router)
-    res.writeHead(400, { 'Content-Type': 'application/json' });
-    return res.end('{"error":"Unknown interaction type"}');
-    
+    // For non-PING requests, verify signature is valid
+    if (!isValidRequest) {
+      console.warn('[Discord] Signature verification failed for non-PING');
+      return res.status(401).json({ error: 'Invalid request signature' });
+    }
+
+    // Handle application commands (type 2) - delegate to Express router
+    if (interaction.type === 2) {
+      // Import and use the Express router handler
+      const { default: handleCommand } = await import('../packages/backend/src/api/integrations/discord/commands.js');
+      const response = await handleCommand(interaction);
+      return res.status(200).json(response);
+    }
+
+    // Unknown interaction type
+    return res.status(400).json({ error: 'Unknown interaction type' });
+
   } catch (error) {
-    // Fallback: if anything fails, try to respond with PONG
+    console.error('[Discord] Critical error:', error);
+    // If error occurs, check if it might be a PING request
     try {
       const bodyStr = typeof req.body === 'string' ? req.body : JSON.stringify(req.body || '');
       if (bodyStr && bodyStr.includes('"type":1')) {
+        console.log('[Discord] Error occurred but responding with PONG for potential PING');
         res.writeHead(200, { 'Content-Type': 'application/json' });
         return res.end('{"type":1}');
       }
@@ -75,7 +95,7 @@ export default async function handler(req, res) {
       // Ignore
     }
     
-    res.writeHead(500, { 'Content-Type': 'application/json' });
-    return res.end('{"error":"Internal server error"}');
+    return res.status(500).json({ error: 'Internal server error' });
   }
 }
+
