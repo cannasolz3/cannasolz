@@ -670,8 +670,8 @@ export async function handlePayCommand(interaction) {
     const username = targetUser.global_name || targetUser.username || 'Unknown User';
     const avatarUrl = getUserAvatarUrl(targetUser);
     
-    // Convert amount to the smallest unit (assuming 9 decimals like SOL)
-    const amountInSmallestUnit = BigInt(Math.floor(amount * 1_000_000_000));
+    // unclaimed_amount is stored as a regular number (not in smallest units)
+    // So we add the amount directly without conversion
     
     // Update claim_accounts
     client = await dbPool.connect();
@@ -685,14 +685,14 @@ export async function handlePayCommand(interaction) {
       [targetUserId, username]
     );
     
-    // Update unclaimed_amount
+    // Update unclaimed_amount - add amount directly (no conversion needed)
     const updateResult = await client.query(
       `UPDATE claim_accounts 
        SET unclaimed_amount = unclaimed_amount + $1,
            discord_name = COALESCE(discord_name, $2)
        WHERE discord_id = $3
        RETURNING unclaimed_amount`,
-      [amountInSmallestUnit.toString(), username, targetUserId]
+      [amount, username, targetUserId]
     );
     
     if (updateResult.rows.length === 0) {
@@ -708,7 +708,7 @@ export async function handlePayCommand(interaction) {
     
     await client.query('COMMIT');
     
-    const newBalance = Number(updateResult.rows[0].unclaimed_amount) / 1_000_000_000;
+    const newBalance = Number(updateResult.rows[0].unclaimed_amount);
     
     // Format numbers
     const formatTokenAmount = (amt) => {
