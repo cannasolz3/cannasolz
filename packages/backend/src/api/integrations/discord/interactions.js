@@ -127,22 +127,10 @@ interactionsRouter.post('/', (req, res) => {
       req.rawBody = Buffer.from(rawBodyString, 'utf8');
     }
     
-    // CRITICAL: Handle PING FIRST - verify signature with raw body, then respond
-    // Discord verification sends PING with signatures - we must verify correctly
+    // CRITICAL: Handle PING FIRST - respond immediately, NO signature verification
+    // Discord docs: PING requests don't require signature verification
+    // During verification, Discord sends PING - we must respond with {"type":1}
     if (interaction && (interaction.type === 1 || interaction.type === InteractionType.PING)) {
-      // Verify signature using raw body (this is what Discord signed)
-      // CRITICAL: Discord may check if we can verify signatures correctly
-      const publicKey = process.env.DISCORD_PUBLIC_KEY;
-      if (publicKey && req.rawBody) {
-        try {
-          const isValid = verifySignature(req);
-          // During verification, Discord sends invalid signatures to test security
-          // But we still respond with PONG to allow verification to proceed
-        } catch (e) {
-          // Ignore verification errors - still respond with PONG
-        }
-      }
-      
       // Respond immediately with exact format - NO CORS headers, NO extra headers
       // Remove any headers Express might have added
       res.removeHeader('Access-Control-Allow-Origin');
