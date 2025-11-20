@@ -1,4 +1,6 @@
 import axios from 'axios';
+import dbPool from '../config/database.js';
+import { getRuntimeConfig } from '../config/runtime.js';
 
 // Discord interaction types
 const InteractionType = {
@@ -51,21 +53,55 @@ async function fetchCollectionData() {
   }
 }
 
+// Get total NFT count from database
+async function getTotalCollectionCount() {
+  let client;
+  try {
+    client = await dbPool.connect();
+    const result = await client.query(
+      'SELECT COUNT(*) as total FROM nft_metadata WHERE symbol = $1',
+      [COLLECTION_SYMBOL]
+    );
+    return parseInt(result.rows[0]?.total || 0, 10);
+  } catch (error) {
+    console.error('Error fetching total collection count:', error);
+    return null;
+  } finally {
+    if (client) {
+      client.release();
+    }
+  }
+}
+
 // Handle /collection command
 export async function handleCollectionCommand() {
   try {
-    const data = await fetchCollectionData();
+    // Fetch Magic Eden data and total count in parallel
+    const [data, totalCount] = await Promise.all([
+      fetchCollectionData(),
+      getTotalCollectionCount()
+    ]);
     
     const floorPrice = lamportsToSol(data.floorPrice || 0);
     const listedCount = data.listedCount || 0;
     const totalVolume = lamportsToSol(data.volumeAll || 0);
+    
+    // Format listed count as "listed/total" or just "listed" if total not available
+    const listedCountDisplay = totalCount !== null 
+      ? `${listedCount.toLocaleString()}/${totalCount.toLocaleString()}`
+      : `${listedCount.toLocaleString()}`;
+    
+    // Get base URL for favicon from runtime config
+    const runtime = getRuntimeConfig();
+    const baseUrl = runtime.frontendUrl || 'https://cannasolz.vercel.app';
+    const faviconUrl = `${baseUrl}/favicon.jpeg`;
     
     const embed = {
       title: `📊 ${data.name || 'CannaSolz'} Collection Stats`,
       description: data.description || 'CannaSolz NFT Collection',
       color: 0x95D5B2, // Green color matching brand
       thumbnail: {
-        url: data.image || 'https://creator-hub-prod.s3.us-east-2.amazonaws.com/cannasolz_pfp_1668579712636.png'
+        url: faviconUrl
       },
       fields: [
         {
@@ -74,8 +110,8 @@ export async function handleCollectionCommand() {
           inline: true
         },
         {
-          name: '📋 Total Listed',
-          value: `${listedCount.toLocaleString()}`,
+          name: '📋 Listed',
+          value: listedCountDisplay,
           inline: true
         },
         {
