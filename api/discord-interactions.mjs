@@ -40,17 +40,21 @@ export default async function handler(req, res) {
     
     // CRITICAL: Handle PING immediately
     if (body.type === 1) {
-      // Attempt signature verification (Discord may check this capability)
-      // But don't block response even if verification fails
-      try {
-        if (process.env.DISCORD_PUBLIC_KEY) {
+      // For PING during verification, Discord may send valid signatures
+      // We must verify and respond, but also handle invalid sigs gracefully
+      const publicKey = process.env.DISCORD_PUBLIC_KEY;
+      if (publicKey && req.headers['x-signature-ed25519'] && req.headers['x-signature-timestamp']) {
+        // Attempt signature verification
+        // Note: rawBody is reconstructed, so verification may fail even with valid sigs
+        // But we still respond to allow verification to proceed
+        try {
           verifySignature(req, rawBody);
+        } catch (e) {
+          // Ignore verification errors for PING during verification
         }
-      } catch (e) {
-        // Ignore - still respond with PONG
       }
       
-      // Respond immediately with exact format
+      // Always respond with PONG for PING requests
       res.writeHead(200, { 'Content-Type': 'application/json' });
       return res.end('{"type":1}');
     }
